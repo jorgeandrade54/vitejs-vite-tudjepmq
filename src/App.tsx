@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 
 interface Candidato {
   rid: number; idade: number;
@@ -28,11 +28,11 @@ const PT_COR: Record<string,string> = {
   SOLIDARIEDADE:"#FF4500", AGIR:"#0047AB", CIDADANIA:"#FF6B35",
 };
 
-const getIbg  = (co: string) => COR_COR[co] ?? "#4FA3FF";
-const getPtc  = (pt: string) => PT_COR[pt]  ?? "#555";
+const getIbg = (co: string) => COR_COR[co] ?? "#4FA3FF";
+const getPtc = (pt: string) => PT_COR[pt] ?? "#555";
 const fotoUrl = (c: Candidato) =>
   `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/${c.cd}/${c.sq}/${c.ue}`;
-const tseUrl  = (c: Candidato) =>
+const tseUrl = (c: Candidato) =>
   `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${c.re}/${c.uf}/${c.cd}/${c.sq}/${c.an}/${c.ue}`;
 
 function passaFiltros(c: Candidato, f: Filtros): boolean {
@@ -48,21 +48,128 @@ function passaFiltros(c: Candidato, f: Filtros): boolean {
   return true;
 }
 
-// Componente de foto com fallback para inicial
-  return <div style={style}>{c.n.charAt(0)}</div>;
+function FotoCard({ c }: { c: Candidato }) {
+  const [err, setErr] = useState(false);
+  if (!err) return (
+    <div className="card-foto">
+      <img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} />
+    </div>
+  );
+  return <div className="card-foto-fb" style={{ background: getIbg(c.co) }}>{c.n.charAt(0)}</div>;
+}
+
+function FotoModal({ c }: { c: Candidato }) {
+  const [err, setErr] = useState(false);
+  if (!err) return (
+    <div className="modal-foto">
+      <img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} />
+    </div>
+  );
+  return <div className="modal-foto-fb" style={{ background: getIbg(c.co) }}>{c.n.charAt(0)}</div>;
+}
+
+function PickerModal({ title, items, selected, onSelect, onClose }: {
+  title: string; items: string[]; selected?: string;
+  onSelect: (v: string) => void; onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const filtered = useMemo(() =>
+    items.filter(i => i.toLowerCase().includes(q.toLowerCase()))
+  , [items, q]);
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="picker-ov" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="picker-box">
+        <div className="picker-hd">
+          <div className="picker-title">{title}</div>
+          <button className="picker-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="picker-search-wrap">
+          <input ref={inputRef} className="picker-search"
+            placeholder={`Buscar ${title.toLowerCase()}...`}
+            value={q} onChange={e => setQ(e.target.value)} />
+        </div>
+        <div className="picker-list">
+          {selected && (
+            <div className="picker-item selected" onClick={() => { onSelect(selected); onClose(); }}>✓ {selected}</div>
+          )}
+          {filtered.filter(i => i !== selected).map(v => (
+            <div key={v} className="picker-item" onClick={() => { onSelect(v); onClose(); }}>{v}</div>
+          ))}
+          {filtered.length === 0 && <div className="picker-empty">Nenhum resultado</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Tela de boas-vindas ───────────────────────────────────────────────────────
+function WelcomeScreen({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="welcome">
+      <div className="welcome-bg" />
+      <div className="welcome-content">
+        <div className="welcome-logo">
+          <span className="wl-me">ME</span>
+          <span className="wl-representa">REPRESENTA</span>
+          <span className="wl-q">?</span>
+        </div>
+        <div className="welcome-tagline">Encontre candidatos que têm o mesmo perfil que você</div>
+
+        <div className="welcome-cards">
+          <div className="wcard">
+            <div className="wcard-icon">⚖️</div>
+            <div className="wcard-text">O legislativo deveria ser um espelho da sociedade — mas não é</div>
+          </div>
+          <div className="wcard">
+            <div className="wcard-icon">👥</div>
+            <div className="wcard-text">A maioria dos parlamentares ainda são homens, brancos e de classe alta</div>
+          </div>
+          <div className="wcard">
+            <div className="wcard-icon">🗳️</div>
+            <div className="wcard-text">Uma professora negra conhece os problemas e pode propor políticas públicas que um político rico jamais pensaria</div>
+          </div>
+        </div>
+
+        <div className="welcome-body">
+          <p>
+            O <strong>MeRepresenta</strong> nasceu de uma pergunta simples: <em>por que quem decide sobre a nossa vida não se parece com a gente?</em>
+          </p>
+          <p>
+            Se compararmos o último censo do IBGE com a composição do legislativo, os números são gritantes. Pretos, pardos, indígenas, mulheres e jovens são maioria na população — mas minoria no poder.
+          </p>
+          <p>
+            Use os filtros para encontrar candidatos que compartilhem seu perfil. Depois, entre os que se parecem com você, descubra aqueles que também pensam como você. Porque esse espaço também é nosso.
+          </p>
+          <p style={{ fontSize:13, color:"#778" }}>
+            🔍 Dados das Eleições Municipais 2024 · Pará · Fonte: TSE
+          </p>
+        </div>
+
+        <button className="welcome-btn" onClick={onStart}>
+          Explorar candidatos →
+        </button>
+      </div>
+    </div>
+  );
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
   --bg:#080C17;--bg2:#0C1220;--bg3:#111827;
-  --gold:#FFD700;--green:#00C950;
+  --gold:#FFD700;--green:#00C950;--pink:#FF3CA0;--purple:#9B5DE5;
   --text:#E8EDF5;--muted:#5A6A80;--border:rgba(255,255,255,.07);
   --sw:292px;
 }
 html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;}
 
+/* ── Loading ── */
 .loading{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
   background:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(0,201,80,.06),transparent 70%),var(--bg);}
 .logo-big{font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,12vw,100px);letter-spacing:2px;line-height:1;}
@@ -71,15 +178,59 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .pfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .4s;}
 .ptxt{font-size:11px;color:var(--muted);}
 
+/* ── Welcome ── */
+.welcome{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:32px 20px;position:relative;overflow:hidden;background:var(--bg);}
+.welcome-bg{position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 20%, rgba(155,93,229,.15) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(255,60,160,.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 50% 50%, rgba(0,201,80,.06) 0%, transparent 70%);}
+.welcome-content{max-width:580px;width:100%;position:relative;z-index:1;}
+
+.welcome-logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,14vw,110px);
+  line-height:.9;letter-spacing:2px;margin-bottom:12px;}
+.wl-me{
+  background:linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.wl-representa{color:var(--text);}
+.wl-q{color:var(--gold);}
+
+.welcome-tagline{font-size:clamp(14px,3vw,18px);color:var(--muted);margin-bottom:28px;font-weight:500;}
+
+.welcome-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px;}
+@media(max-width:540px){.welcome-cards{grid-template-columns:1fr;}}
+.wcard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:16px 14px;transition:border-color .2s;}
+.wcard:hover{border-color:rgba(155,93,229,.3);}
+.wcard-icon{font-size:24px;margin-bottom:8px;}
+.wcard-text{font-size:12px;color:#8899BB;line-height:1.5;}
+
+.welcome-body{display:flex;flex-direction:column;gap:12px;margin-bottom:28px;}
+.welcome-body p{font-size:14px;color:#8899BB;line-height:1.7;}
+.welcome-body strong{color:var(--text);}
+.welcome-body em{color:var(--gold);font-style:normal;font-weight:600;}
+
+.welcome-btn{
+  width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;
+  background:linear-gradient(135deg,var(--pink),var(--purple));
+  color:#fff;letter-spacing:.5px;transition:all .2s;
+  box-shadow:0 8px 32px rgba(155,93,229,.35);}
+.welcome-btn:hover{transform:scale(1.02);box-shadow:0 12px 40px rgba(155,93,229,.5);}
+
+/* ── App layout ── */
 .app{display:flex;min-height:100vh;}
 
-/* Sidebar */
+/* ── Sidebar ── */
 .sb{width:var(--sw);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);
   display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;
   overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1);}
 .sb-hd{padding:18px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
-.logo{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;}
-.logo .lg{color:var(--green);}.logo .ly{color:var(--gold);}
+.sb-logo{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;}
+.sb-logo .lme{background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sb-logo .lrep{color:var(--text);}
+.sb-logo .lq{color:var(--gold);}
 .logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
 .sb-body{flex:1;overflow-y:auto;padding:12px 16px 80px;}
 .sb-body::-webkit-scrollbar{width:3px;}
@@ -104,6 +255,14 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .tog input:checked+.tog-tr{background:var(--green);}
 .tog-th{position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:.2s;}
 .tog input:checked~.tog-th{left:21px;}
+
+.sel-btn{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:rgba(255,255,255,.03);color:var(--text);font-family:inherit;font-size:12px;
+  cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;transition:all .15s;}
+.sel-btn:hover{border-color:rgba(255,215,0,.3);}
+.sel-btn.has-val{border-color:var(--gold);color:var(--gold);}
+.sel-btn-arrow{font-size:10px;color:var(--muted);}
+
 .srch{width:100%;padding:7px 11px;border-radius:8px;border:1px solid var(--border);
   background:rgba(255,255,255,.03);color:var(--text);font-family:inherit;font-size:12px;margin-bottom:6px;outline:none;}
 .srch:focus{border-color:rgba(255,215,0,.3);}
@@ -114,31 +273,33 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .sit:hover{background:rgba(255,255,255,.05);color:var(--text);}
 .sit.on{background:rgba(255,215,0,.1);color:var(--gold);font-weight:600;}
 .rst-btn{width:100%;padding:9px;border-radius:8px;border:1px dashed rgba(255,215,0,.25);
-  background:transparent;color:var(--gold);font-family:inherit;font-size:12px;
-  cursor:pointer;transition:all .2s;margin-top:6px;font-weight:600;}
+  background:transparent;color:var(--gold);font-family:inherit;font-size:12px;cursor:pointer;transition:all .2s;margin-top:6px;font-weight:600;}
 .rst-btn:hover{background:rgba(255,215,0,.07);}
 
-/* Main */
+/* ── Main ── */
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
 .mhd{padding:18px 22px 12px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:50;}
+.mhd-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:8px;}
+.mhd-logo .lme{background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.mhd-logo .lrep{color:var(--text);}
+.mhd-logo .lq{color:var(--gold);}
 .cnt-big{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;}
 .cnt-big span{color:var(--gold);}
 .cnt-sub{font-size:11px;color:var(--muted);margin-top:3px;}
 .pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
 .pill{display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;
-  font-weight:600;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);
-  color:var(--gold);cursor:pointer;transition:all .15s;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  font-weight:600;background:rgba(255,60,160,.08);border:1px solid rgba(255,60,160,.25);
+  color:var(--pink);cursor:pointer;transition:all .15s;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pill:hover{background:rgba(255,60,60,.1);border-color:rgba(255,60,60,.3);color:#FF6B6B;}
 
 .gw{padding:16px 22px 20px;flex:1;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
 
-/* Card */
-.card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;
-  padding:14px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;
-  position:relative;overflow:hidden;}
-.card:hover{transform:translateY(-3px);border-color:rgba(255,215,0,.22);box-shadow:0 8px 28px rgba(0,0,0,.4);}
-.card-foto{width:56px;height:56px;border-radius:12px;overflow:hidden;flex-shrink:0;margin-bottom:10px;position:relative;}
+/* ── Card ── */
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px;
+  cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;overflow:hidden;}
+.card:hover{transform:translateY(-3px);border-color:rgba(155,93,229,.3);box-shadow:0 8px 28px rgba(0,0,0,.4);}
+.card-foto{width:56px;height:56px;border-radius:12px;overflow:hidden;flex-shrink:0;margin-bottom:10px;}
 .card-foto img{width:100%;height:100%;object-fit:cover;object-position:top;}
 .card-foto-fb{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;
   font-family:'Bebas Neue',sans-serif;font-size:24px;color:#000;margin-bottom:10px;}
@@ -146,19 +307,15 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .cca{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
 .cpt{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;margin-bottom:8px;}
 .ctags{display:flex;flex-wrap:wrap;gap:3px;}
-.ctag{font-size:10px;padding:2px 6px;border-radius:99px;
-  border:1px solid rgba(255,255,255,.08);color:#6A7A8A;background:rgba(255,255,255,.02);}
+.ctag{font-size:10px;padding:2px 6px;border-radius:99px;border:1px solid rgba(255,255,255,.08);color:#6A7A8A;background:rgba(255,255,255,.02);}
 .ctag.m{border-color:var(--c);color:var(--c);}
-.edot{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%;
-  background:var(--green);box-shadow:0 0 6px var(--green);}
+.edot{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
 
-/* Modal */
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;
-  display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;}
+/* ── Modal candidato ── */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;}
 @media(min-width:600px){.ov{align-items:center;}}
 .modal{background:var(--bg2);border:1px solid rgba(255,255,255,.1);width:100%;max-width:460px;
-  border-radius:20px 20px 0 0;padding:26px 22px;position:relative;
-  animation:sup .26s cubic-bezier(.4,0,.2,1);max-height:90vh;overflow-y:auto;}
+  border-radius:20px 20px 0 0;padding:26px 22px;position:relative;animation:sup .26s cubic-bezier(.4,0,.2,1);max-height:90vh;overflow-y:auto;}
 @media(min-width:600px){.modal{border-radius:20px;}}
 @keyframes sup{from{transform:translateY(36px);opacity:0}to{transform:none;opacity:1}}
 @keyframes fin{from{opacity:0}to{opacity:1}}
@@ -176,21 +333,44 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .mcargo{font-size:11px;color:var(--muted);margin-bottom:3px;}
 .mpt{display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;margin-top:6px;}
 .elbadge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;
-  background:rgba(0,201,80,.12);border:1px solid rgba(0,201,80,.25);
-  color:var(--green);font-size:11px;font-weight:700;margin-top:6px;}
+  background:rgba(0,201,80,.12);border:1px solid rgba(0,201,80,.25);color:var(--green);font-size:11px;font-weight:700;margin-top:6px;}
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;}
 .minfo{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;padding:9px;}
 .ml{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
 .mv{font-size:12px;font-weight:600;line-height:1.3;}
 .tbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;
   border-radius:11px;font-family:inherit;font-size:14px;font-weight:700;
-  background:var(--gold);color:#000;border:none;cursor:pointer;transition:all .2s;text-decoration:none;}
-.tbtn:hover{background:#FFC000;}
+  background:linear-gradient(135deg,var(--pink),var(--purple));
+  color:#fff;border:none;cursor:pointer;transition:all .2s;text-decoration:none;}
+.tbtn:hover{opacity:.9;transform:scale(1.01);}
 .maviso{background:rgba(255,165,0,.07);border:1px solid rgba(255,165,0,.2);border-radius:8px;
   padding:8px 10px;font-size:10px;color:#AA8855;line-height:1.5;margin-bottom:12px;}
 
-/* Mobile */
-.mob-bar{display:none;}.fab{display:none;}.sb-pull{display:none;}.sb-ov{display:none;}
+/* ── Picker modal ── */
+.picker-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;
+  display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;}
+.picker-box{background:var(--bg2);width:100%;max-width:480px;border-radius:20px 20px 0 0;
+  display:flex;flex-direction:column;max-height:80vh;animation:sup .26s cubic-bezier(.4,0,.2,1);}
+.picker-hd{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 12px;
+  border-bottom:1px solid var(--border);flex-shrink:0;}
+.picker-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;
+  background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.picker-close{background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);
+  width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.picker-search-wrap{padding:12px 16px;flex-shrink:0;}
+.picker-search{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(155,93,229,.3);
+  background:rgba(255,255,255,.05);color:var(--text);font-family:inherit;font-size:14px;outline:none;}
+.picker-list{flex:1;overflow-y:auto;padding:0 16px 24px;}
+.picker-list::-webkit-scrollbar{width:3px;}
+.picker-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px;}
+.picker-item{padding:13px 12px;border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;
+  cursor:pointer;color:var(--text);transition:all .12s;border-radius:8px;}
+.picker-item:hover{background:rgba(255,255,255,.05);}
+.picker-item.selected{color:var(--pink);font-weight:600;}
+.picker-empty{text-align:center;padding:24px;color:var(--muted);font-size:13px;}
+
+/* ── Mobile ── */
+.mob-bar{display:none;}.fab{display:none;}.sb-pull{display:none;}.sb-ov{display:none;}.sb-close-btn{display:none;}
 @media(max-width:767px){
   :root{--sw:100%;}
   .sb{position:fixed;top:auto;bottom:0;left:0;right:0;height:88vh;
@@ -198,24 +378,33 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
     border-radius:20px 20px 0 0;transform:translateY(100%);}
   .sb.open{transform:translateY(0);}
   .sb-pull{display:block;width:36px;height:3px;border-radius:99px;
-    background:rgba(255,255,255,.18);margin:14px auto 0;flex-shrink:0;}
-  .sb-hd{padding-top:10px;}
+    background:rgba(255,255,255,.18);margin:0 auto;flex-shrink:0;}
+  .sb-hd{padding-top:14px;position:relative;}
+  .sb-close-btn{display:flex;position:absolute;top:14px;right:16px;
+    width:32px;height:32px;border-radius:50%;border:1px solid var(--border);
+    background:rgba(255,255,255,.08);align-items:center;justify-content:center;
+    color:var(--text);font-size:16px;cursor:pointer;z-index:10;}
   .sb-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;animation:fin .2s;}
   .main{margin-left:0;}
   .mob-bar{display:flex;align-items:center;justify-content:space-between;
     padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);
     position:sticky;top:0;z-index:60;}
-  .mob-logo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;}
+  .mob-logo{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;}
   .mhd{padding:12px 16px 10px;top:49px;}
+  .mhd-logo{display:none;}
   .gw{padding:12px 14px 100px;}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;}
   .cnt-big{font-size:24px;}
   .fab{display:flex;position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;
     align-items:center;gap:7px;padding:11px 22px;border-radius:99px;
-    background:var(--gold);color:#000;border:none;font-family:inherit;font-size:13px;
-    font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(255,215,0,.4);white-space:nowrap;}
-  .fc{background:#000;border-radius:99px;padding:1px 6px;font-size:10px;}
+    background:linear-gradient(135deg,var(--pink),var(--purple));
+    color:#fff;border:none;font-family:inherit;font-size:13px;
+    font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(155,93,229,.4);white-space:nowrap;}
+  .fc{background:rgba(0,0,0,.3);border-radius:99px;padding:1px 6px;font-size:10px;}
+  .desktop-only{display:none !important;}
 }
+@media(min-width:768px){.mobile-only{display:none !important;}}
+
 .empty{grid-column:1/-1;text-align:center;padding:60px 20px;}
 .empty-i{font-size:40px;margin-bottom:12px;}
 .empty-t{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#334;}
@@ -224,49 +413,19 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .card{animation:fu .22s ease both;}
 `;
 
-// Foto com fallback
-function FotoCard({ c }: { c: Candidato }) {
-  const [err, setErr] = useState(false);
-  if (!err) {
-    return (
-      <div className="card-foto">
-        <img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} />
-      </div>
-    );
-  }
-  return (
-    <div className="card-foto-fb" style={{ background: getIbg(c.co) }}>
-      {c.n.charAt(0)}
-    </div>
-  );
-}
-
-function FotoModal({ c }: { c: Candidato }) {
-  const [err, setErr] = useState(false);
-  if (!err) {
-    return (
-      <div className="modal-foto">
-        <img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} />
-      </div>
-    );
-  }
-  return (
-    <div className="modal-foto-fb" style={{ background: getIbg(c.co) }}>
-      {c.n.charAt(0)}
-    </div>
-  );
-}
-
 export default function App() {
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
   const [loading, setLoading]       = useState(true);
   const [pct, setPct]               = useState(0);
-  const [msg, setMsg]               = useState("Carregando dados do TSE...");
+  const [msg, setMsg]               = useState("Carregando dados...");
+  const [showWelcome, setShowWelcome] = useState(true);
   const [filtros, setFiltros]       = useState<Filtros>({ apenasEleitos: false });
-  const [ocSearch, setOcSearch]     = useState("");
   const [muSearch, setMuSearch]     = useState("");
+  const [ocSearch, setOcSearch]     = useState("");
   const [sbOpen, setSbOpen]         = useState(false);
   const [sel, setSel]               = useState<Candidato | null>(null);
+  const [pickerOc, setPickerOc]     = useState(false);
+  const [pickerMu, setPickerMu]     = useState(false);
 
   useEffect(() => {
     const t1 = setTimeout(() => setPct(30), 300);
@@ -276,7 +435,7 @@ export default function App() {
       .then((d: Candidato[]) => {
         clearTimeout(t1); clearTimeout(t2);
         setPct(100);
-        setMsg(`${d.length.toLocaleString()} candidatos das Eleições Municipais 2024`);
+        setMsg(`${d.length.toLocaleString()} candidatos carregados`);
         setTimeout(() => { setCandidatos(d); setLoading(false); }, 400);
       })
       .catch(() => setMsg("Erro ao carregar. Verifique candidatos_pa.json na pasta public."));
@@ -294,11 +453,12 @@ export default function App() {
     };
   }, [candidatos]);
 
-  const ocFilt = useMemo(() => opts.oc.filter(o => o.toLowerCase().includes(ocSearch.toLowerCase())), [opts.oc, ocSearch]);
   const muFilt = useMemo(() => opts.mu.filter(m => m.toLowerCase().includes(muSearch.toLowerCase())), [opts.mu, muSearch]);
+  const ocFilt = useMemo(() => opts.oc.filter(o => o.toLowerCase().includes(ocSearch.toLowerCase())), [opts.oc, ocSearch]);
 
   const tog = useCallback((cat: keyof Filtros, val: string) => {
     setFiltros(f => ({ ...f, [cat]: f[cat] === val ? undefined : val }));
+    setShowWelcome(false);
   }, []);
 
   const { resultado, total } = useMemo(() => {
@@ -313,27 +473,38 @@ export default function App() {
 
   const nAtivos = [filtros.ge, filtros.co, filtros.oc, filtros.fx, filtros.ca, filtros.mu].filter(Boolean).length;
   const temFiltro = nAtivos > 0;
+  const closeSb = useCallback(() => setSbOpen(false), []);
 
   if (loading) return (
     <><style>{CSS}</style>
     <div className="loading">
-      <div className="logo-big"><span className="lg">TE</span><span className="ly">REPRESENTA</span><span>?</span></div>
+      <div className="logo-big">
+        <span style={{background:"linear-gradient(135deg,#FF3CA0,#9B5DE5)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
+        <span style={{color:"#E8EDF5"}}>REPRESENTA</span>
+        <span style={{color:"#FFD700"}}>?</span>
+      </div>
       <div className="pbar"><div className="pfill" style={{ width: `${pct}%` }} /></div>
       <div className="ptxt">{msg}</div>
     </div></>
+  );
+
+  if (showWelcome && !temFiltro) return (
+    <><style>{CSS}</style>
+    <WelcomeScreen onStart={() => setShowWelcome(false)} />
+    </>
   );
 
   const SidebarContent = () => (
     <>
       <div className="sb-pull" />
       <div className="sb-hd">
-        <div className="logo"><span className="lg">TE</span><span className="ly">REPRESENTA</span><span>?</span></div>
+        <div className="sb-logo"><span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span></div>
         <div className="logo-sub">Eleições Municipais · Pará · 2024</div>
+        <button className="sb-close-btn" onClick={closeSb}>✕</button>
       </div>
       <div className="sb-body">
         <div className="aviso">
-          <strong>⚠️ Dados oficiais TSE:</strong> Sexo, etnia, profissão, escolaridade e faixa etária vêm do arquivo de candidatos.{" "}
-          <strong>Orientação sexual e identidade de gênero não são coletados pelo TSE.</strong>
+          <strong>⚠️ Dados oficiais TSE:</strong> Sexo, etnia, profissão, escolaridade e faixa etária vêm do arquivo de candidatos. <strong>Orientação sexual e identidade de gênero não são coletados pelo TSE.</strong>
         </div>
 
         <div className="fsec">
@@ -348,7 +519,7 @@ export default function App() {
         </div>
 
         <div className="fsec">
-          <div className="ftit">⚥ Sexo <span style={{ fontSize:9, color:"#556", fontWeight:400, letterSpacing:0 }}>(conforme TSE)</span></div>
+          <div className="ftit">⚥ Sexo</div>
           <div className="chips">
             {opts.ge.map(v => (
               <div key={v} className={`chip ${filtros.ge === v ? "on" : ""}`}
@@ -394,34 +565,49 @@ export default function App() {
 
         <div className="fsec">
           <div className="ftit">💼 Profissão <span style={{ fontSize:9, color:"#556", fontWeight:400, letterSpacing:0 }}>(190 opções)</span></div>
-          {filtros.oc && (
-            <div style={{ marginBottom:6 }}>
-              <div className="chip on" style={{ "--c": "#FFB347" } as React.CSSProperties}
-                onClick={() => tog("oc", filtros.oc!)}>
-                {filtros.oc} ✕
+          <button className="sel-btn mobile-only"
+            style={filtros.oc ? { borderColor:"#FF3CA0", color:"#FF3CA0" } as React.CSSProperties : {}}
+            onClick={() => setPickerOc(true)}>
+            <span>{filtros.oc ?? "Selecionar profissão..."}</span>
+            {filtros.oc
+              ? <span onClick={e => { e.stopPropagation(); tog("oc", filtros.oc!); }} style={{ color:"#FF6B6B" }}>✕</span>
+              : <span className="sel-btn-arrow">▼</span>}
+          </button>
+          <div className="desktop-only">
+            {filtros.oc && (
+              <div style={{ marginBottom:6 }}>
+                <div className="chip on" style={{ "--c":"#FF3CA0" } as React.CSSProperties} onClick={() => tog("oc", filtros.oc!)}>
+                  {filtros.oc} ✕
+                </div>
               </div>
+            )}
+            <input className="srch" placeholder="Buscar profissão..." value={ocSearch} onChange={e => setOcSearch(e.target.value)} />
+            <div className="slist">
+              {ocFilt.slice(0, 80).map(v => (
+                <div key={v} className={`sit ${filtros.oc === v ? "on" : ""}`} onClick={() => { tog("oc", v); setOcSearch(""); }}>{v}</div>
+              ))}
+              {ocFilt.length === 0 && <div style={{ fontSize:11, color:"#556", padding:"4px 8px" }}>Nenhuma encontrada</div>}
             </div>
-          )}
-          <input className="srch" placeholder="Buscar profissão..."
-            value={ocSearch} onChange={e => setOcSearch(e.target.value)} />
-          <div className="slist">
-            {ocFilt.slice(0, 80).map(v => (
-              <div key={v} className={`sit ${filtros.oc === v ? "on" : ""}`}
-                onClick={() => { tog("oc", v); setOcSearch(""); }}>{v}</div>
-            ))}
-            {ocFilt.length === 0 && <div style={{ fontSize:11, color:"#556", padding:"4px 8px" }}>Nenhuma encontrada</div>}
           </div>
         </div>
 
         <div className="fsec">
           <div className="ftit">📍 Município</div>
-          <input className="srch" placeholder="Buscar cidade..."
-            value={muSearch} onChange={e => setMuSearch(e.target.value)} />
-          <div className="slist">
-            {muFilt.slice(0, 60).map(m => (
-              <div key={m} className={`sit ${filtros.mu === m ? "on" : ""}`}
-                onClick={() => { tog("mu", m); setMuSearch(""); }}>{m}</div>
-            ))}
+          <button className="sel-btn mobile-only"
+            style={filtros.mu ? { borderColor:"#4FA3FF", color:"#4FA3FF" } as React.CSSProperties : {}}
+            onClick={() => setPickerMu(true)}>
+            <span>{filtros.mu ?? "Selecionar município..."}</span>
+            {filtros.mu
+              ? <span onClick={e => { e.stopPropagation(); tog("mu", filtros.mu!); }} style={{ color:"#FF6B6B" }}>✕</span>
+              : <span className="sel-btn-arrow">▼</span>}
+          </button>
+          <div className="desktop-only">
+            <input className="srch" placeholder="Buscar cidade..." value={muSearch} onChange={e => setMuSearch(e.target.value)} />
+            <div className="slist">
+              {muFilt.slice(0, 60).map(m => (
+                <div key={m} className={`sit ${filtros.mu === m ? "on" : ""}`} onClick={() => { tog("mu", m); setMuSearch(""); }}>{m}</div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -436,21 +622,26 @@ export default function App() {
     <><style>{CSS}</style>
 
     <div className="mob-bar">
-      <div className="mob-logo"><span className="lg">TE</span><span className="ly">REPRESENTA</span><span>?</span></div>
+      <div className="mob-logo">
+        <span style={{background:"linear-gradient(135deg,#FF3CA0,#9B5DE5)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
+        <span>REPRESENTA</span>
+        <span style={{color:"#FFD700"}}>?</span>
+      </div>
       <span style={{ fontSize:10, color:"var(--muted)" }}>PA · 2024</span>
     </div>
 
     <div className="app">
-      {sbOpen && <div className="sb-ov" onClick={() => setSbOpen(false)} />}
+      {sbOpen && <div className="sb-ov" onClick={closeSb} />}
       <div className={`sb ${sbOpen ? "open" : ""}`}><SidebarContent /></div>
 
       <div className="main">
         <div className="mhd">
+          <div className="mhd-logo">
+            <span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span>
+          </div>
           <div className="cnt-big"><span>{total.toLocaleString()}</span> candidatos</div>
           <div className="cnt-sub">
-            {temFiltro
-              ? `${total.toLocaleString()} candidatos correspondem ao seu perfil`
-              : "Selecione características no painel para filtrar"}
+            {temFiltro ? `${total.toLocaleString()} candidatos correspondem ao seu perfil` : "Selecione características no painel para filtrar"}
           </div>
           {temFiltro && (
             <div className="pills">
@@ -459,8 +650,7 @@ export default function App() {
                 { k:"oc", v:filtros.oc }, { k:"fx", v:filtros.fx },
                 { k:"ca", v:filtros.ca }, { k:"mu", v:filtros.mu },
               ].filter(x => x.v).map(({ k, v }) => (
-                <div key={k} className="pill"
-                  onClick={() => setFiltros(f => ({ ...f, [k]: undefined }))}>
+                <div key={k} className="pill" onClick={() => setFiltros(f => ({ ...f, [k]: undefined }))}>
                   <span style={{ overflow:"hidden", textOverflow:"ellipsis" }}>{v}</span> ✕
                 </div>
               ))}
@@ -478,34 +668,20 @@ export default function App() {
               </div>
             )}
             {resultado.map((c, i) => {
-              const mge = filtros.ge === c.ge;
-              const mco = filtros.co === c.co;
-              const moc = filtros.oc === c.oc;
+              const mge = filtros.ge === c.ge, mco = filtros.co === c.co, moc = filtros.oc === c.oc;
               return (
                 <div className="card" key={c.rid}
-                  style={{ animationDelay: `${Math.min(i, 30) * 0.025}s` } as React.CSSProperties}
+                  style={{ animationDelay: `${Math.min(i,30)*.025}s` } as React.CSSProperties}
                   onClick={() => setSel(c)}>
-
                   {c.el && <div className="edot" title="Eleito(a)" />}
-
                   <FotoCard c={c} />
-
                   <div className="cn">{c.n}</div>
                   <div className="cca">{c.ca} · {c.mu}</div>
                   <div className="cpt" style={{ background: getPtc(c.pt) }}>{c.pt}</div>
                   <div className="ctags">
-                    <span className={`ctag ${mge ? "m" : ""}`}
-                      style={mge ? { "--c": c.ge === "FEMININO" ? "#FF69B4" : "#4FA3FF" } as React.CSSProperties : {}}>
-                      {c.ge}
-                    </span>
-                    <span className={`ctag ${mco ? "m" : ""}`}
-                      style={mco ? { "--c": COR_COR[c.co] ?? "#FFD700" } as React.CSSProperties : {}}>
-                      {c.co}
-                    </span>
-                    <span className={`ctag ${moc ? "m" : ""}`}
-                      style={moc ? { "--c": "#FFB347" } as React.CSSProperties : {}}>
-                      {c.oc.length > 20 ? c.oc.slice(0, 20) + "…" : c.oc}
-                    </span>
+                    <span className={`ctag ${mge?"m":""}`} style={mge?{"--c":c.ge==="FEMININO"?"#FF69B4":"#4FA3FF"} as React.CSSProperties:{}}>{c.ge}</span>
+                    <span className={`ctag ${mco?"m":""}`} style={mco?{"--c":COR_COR[c.co]??"#FFD700"} as React.CSSProperties:{}}>{c.co}</span>
+                    <span className={`ctag ${moc?"m":""}`} style={moc?{"--c":"#FF3CA0"} as React.CSSProperties:{}}>{c.oc.length>20?c.oc.slice(0,20)+"…":c.oc}</span>
                     <span className="ctag">{c.idade}a</span>
                   </div>
                 </div>
@@ -517,15 +693,20 @@ export default function App() {
     </div>
 
     <button className="fab" onClick={() => setSbOpen(o => !o)}>
-      {sbOpen ? "✕ Fechar" : "⚙ Filtros"}
+      {sbOpen ? "✕ Fechar filtros" : "⚙ Filtros"}
       {nAtivos > 0 && <span className="fc">{nAtivos}</span>}
     </button>
+
+    {pickerOc && <PickerModal title="Profissão" items={opts.oc} selected={filtros.oc}
+      onSelect={v => { tog("oc", v); setPickerOc(false); }} onClose={() => setPickerOc(false)} />}
+
+    {pickerMu && <PickerModal title="Município" items={opts.mu} selected={filtros.mu}
+      onSelect={v => { tog("mu", v); setPickerMu(false); }} onClose={() => setPickerMu(false)} />}
 
     {sel && (
       <div className="ov" onClick={e => e.target === e.currentTarget && setSel(null)}>
         <div className="modal">
           <button className="mcl" onClick={() => setSel(null)}>×</button>
-
           <div className="modal-top">
             <FotoModal c={sel} />
             <div className="modal-info">
@@ -536,28 +717,14 @@ export default function App() {
               {sel.el && <div className="elbadge">✓ ELEITO(A)</div>}
             </div>
           </div>
-
           <div className="mgrid">
-            {[
-              { l:"Sexo",        v: sel.ge },
-              { l:"Etnia/Cor",   v: sel.co },
-              { l:"Idade",       v: `${sel.idade} anos` },
-              { l:"Escolaridade",v: sel.es.replace("ENSINO ", "") },
-              { l:"Profissão",   v: sel.oc },
-            ].map(({ l, v }) => (
-              <div className="minfo" key={l}>
-                <div className="ml">{l}</div>
-                <div className="mv">{v}</div>
-              </div>
-            ))}
+            {[{l:"Sexo",v:sel.ge},{l:"Etnia/Cor",v:sel.co},{l:"Idade",v:`${sel.idade} anos`},{l:"Escolaridade",v:sel.es.replace("ENSINO ","")},{l:"Profissão",v:sel.oc}]
+              .map(({l,v}) => (
+                <div className="minfo" key={l}><div className="ml">{l}</div><div className="mv">{v}</div></div>
+              ))}
           </div>
-
-          <div className="maviso">
-            🏛️ No perfil do TSE você encontra redes sociais, propostas, bens declarados e financiamento de campanha.
-          </div>
-          <a className="tbtn" href={tseUrl(sel)} target="_blank" rel="noopener noreferrer">
-            🗳️ Ver perfil completo no TSE
-          </a>
+          <div className="maviso">🏛️ No perfil do TSE você encontra redes sociais, propostas, bens declarados e financiamento de campanha.</div>
+          <a className="tbtn" href={tseUrl(sel)} target="_blank" rel="noopener noreferrer">🗳️ Ver perfil completo no TSE</a>
         </div>
       </div>
     )}
