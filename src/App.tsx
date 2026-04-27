@@ -50,7 +50,7 @@ function passaFiltros(c: Candidato, f: Filtros): boolean {
 
 // Componente de foto com fallback para inicial
   return <div style={style}>{c.n.charAt(0)}</div>;
-
+}
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
