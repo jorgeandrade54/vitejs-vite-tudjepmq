@@ -49,29 +49,8 @@ function passaFiltros(c: Candidato, f: Filtros): boolean {
 }
 
 // Componente de foto com fallback para inicial
-function Foto({ c, size, fontSize }: { c: Candidato; size: number; fontSize: number }) {
-  const [err, setErr] = useState(false);
-  const bg = getIbg(c.co);
-  const style: React.CSSProperties = {
-    width: size, height: size, borderRadius: size * 0.28,
-    overflow: "hidden", flexShrink: 0, background: bg,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "'Bebas Neue', sans-serif", fontSize, color: "#000",
-  };
-  if (!err) {
-    return (
-      <div style={style}>
-        <img
-          src={fotoUrl(c)}
-          alt={c.n}
-          onError={() => setErr(true)}
-          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
-        />
-      </div>
-    );
-  }
   return <div style={style}>{c.n.charAt(0)}</div>;
-}
+
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
