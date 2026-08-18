@@ -53,10 +53,30 @@ const REDE_ICON: Record<string,{i:string;c:string;l:string}> = {
 
 const getIbg = (co: string) => COR_COR[co] ?? "#9B5DE5";
 const getPtc = (pt: string) => PT_COR[pt] ?? "#666";
-const fotoUrl = (c: Candidato) =>
-  `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/2045202026/${c.sq}/${c.ue}`;
-const tseUrl = (c: Candidato) =>
-  `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/2045202026/${c.uf}/2045202026/${c.sq}`;
+
+// Código interno do DivulgaCand por UF para as Eleições Gerais 2026.
+// (mesmo código para todos os candidatos de um estado)
+const CD_DIVULGA: Record<string,string> = {
+  PA: "20322002026",
+};
+// Região de cada UF (usado na URL do perfil)
+const REGIAO: Record<string,string> = {
+  AC:"NORTE", AP:"NORTE", AM:"NORTE", PA:"NORTE", RO:"NORTE", RR:"NORTE", TO:"NORTE",
+  AL:"NORDESTE", BA:"NORDESTE", CE:"NORDESTE", MA:"NORDESTE", PB:"NORDESTE", PE:"NORDESTE", PI:"NORDESTE", RN:"NORDESTE", SE:"NORDESTE",
+  DF:"CENTRO", GO:"CENTRO", MT:"CENTRO", MS:"CENTRO",
+  ES:"SUDESTE", MG:"SUDESTE", RJ:"SUDESTE", SP:"SUDESTE",
+  PR:"SUL", RS:"SUL", SC:"SUL",
+};
+
+const fotoUrl = (c: Candidato) => {
+  const cd = CD_DIVULGA[c.uf] ?? "20322002026";
+  return `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/${cd}/${c.sq}/${c.ue}`;
+};
+const tseUrl = (c: Candidato) => {
+  const cd = CD_DIVULGA[c.uf] ?? "20322002026";
+  const re = REGIAO[c.uf] ?? "NORTE";
+  return `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${re}/${c.uf}/${cd}/${c.sq}/2026/${c.ue}`;
+};
 
 function passaFiltros(c: Candidato, f: Filtros): boolean {
   if (f.ge && c.ge !== f.ge) return false;
