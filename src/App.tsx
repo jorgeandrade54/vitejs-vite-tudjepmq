@@ -186,6 +186,24 @@ function WelcomeScreen({ onStart, total }: { onStart: () => void; total: number 
         </div>
 
         <button className="welcome-btn" onClick={onStart}>Explorar candidatos →</button>
+
+        <div className="welcome-sig">
+          <div className="sig-line" />
+          <div className="sig-content">
+            <div className="sig-text">
+              <div className="sig-label">Um projeto independente e sem fins lucrativos, idealizado e desenvolvido por</div>
+              <div className="sig-name">Jorge Andrade</div>
+            </div>
+            <div className="sig-links">
+              <a className="sig-link" href="https://instagram.com/jhor54" target="_blank" rel="noopener noreferrer">
+                <span className="sig-emoji">📷</span> @jhor54
+              </a>
+              <a className="sig-link" href="mailto:jorgeandrade54@gmail.com">
+                <span className="sig-emoji">✉️</span> Email
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -235,6 +253,17 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .welcome-source{margin-top:16px;font-size:11px;color:var(--muted);padding-top:12px;border-top:1px solid var(--border);}
 .welcome-btn{width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;background:var(--grad);color:#fff;letter-spacing:.3px;transition:all .2s;box-shadow:0 6px 24px rgba(107,31,168,.3);}
 .welcome-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(107,31,168,.45);}
+
+.welcome-sig{margin-top:32px;}
+.sig-line{height:1px;background:var(--border);margin-bottom:20px;}
+.sig-content{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.sig-label{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:2px;}
+.sig-name{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sig-links{display:flex;gap:10px;flex-wrap:wrap;}
+.sig-link{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:12px;border:1.5px solid var(--border);background:#fff;text-decoration:none;font-size:13px;font-weight:700;color:var(--text);transition:all .18s;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.sig-link:hover{border-color:var(--purple);color:var(--purple);transform:translateY(-2px);box-shadow:0 6px 16px rgba(107,31,168,.15);}
+.sig-emoji{font-size:15px;}
+@media(max-width:520px){.sig-content{flex-direction:column;align-items:flex-start;}}
 
 .app{display:flex;min-height:100vh;}
 .sb{width:var(--sw);flex-shrink:0;background:var(--bg3);border-right:1.5px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:2px 0 16px rgba(0,0,0,.06);}
