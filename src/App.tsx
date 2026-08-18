@@ -1,71 +1,106 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 
+interface Rede { t: string; u: string; }
 interface Candidato {
-  rid: number; idade: number;
+  rid: number; sq: string; idade: number;
   n: string; nc: string; ca: string; pt: string;
-  mu: string; ge: string; co: string; oc: string; es: string;
-  el: boolean; sq: string; ue: string; cd: string;
-  uf: string; re: string; an: string;
+  ge: string; co: string; oc: string; es: string;
+  ue: string; uf: string;
+  ql: number; ei: string; bn: number; rs: Rede[];
 }
 interface Filtros {
   ge?: string; co?: string; oc?: string; fx?: string;
-  ca?: string; mu?: string; apenasEleitos: boolean;
+  ca?: string; es?: string; ql?: boolean; ind?: boolean; bn?: boolean;
 }
 
 const FAIXAS = [
   { label:"18–30", min:18, max:30 }, { label:"31–45", min:31, max:45 },
-  { label:"46–60", min:46, max:60 }, { label:"60+", min:61, max:99 },
+  { label:"46–60", min:46, max:60 }, { label:"60+", min:61, max:120 },
 ];
 const COR_COR: Record<string,string> = {
-  BRANCA:"#C8A87A", PRETA:"#7B4A2A", PARDA:"#C68B4E",
-  AMARELA:"#E6B800", "INDÍGENA":"#8B5513",
+  BRANCA:"#A0845C", PRETA:"#5C3317", PARDA:"#A06830",
+  AMARELA:"#C8960A", "INDÍGENA":"#7B4513",
 };
 const PT_COR: Record<string,string> = {
-  PT:"#CC0000", PSD:"#003FA5", PSOL:"#7B00B0", MDB:"#4169E1", PP:"#0000CD",
+  PT:"#CC0000", PSD:"#003FA5", PSOL:"#7B00B0", MDB:"#4169E1", PP:"#2A52BE",
   NOVO:"#E87722", REDE:"#00B140", PL:"#00205C", PSB:"#E05C00", PDT:"#C00000",
   PSDB:"#0070C0", REPUBLICANOS:"#003F7F", PCDOB:"#8B0000", PODE:"#006400",
-  AVANTE:"#FF6600", PRD:"#003366", DC:"#001F5B", PV:"#2E8B57",
-  SOLIDARIEDADE:"#FF4500", AGIR:"#0047AB", CIDADANIA:"#FF6B35",
+  AVANTE:"#FF6600", PRD:"#003366", DC:"#001F5B", PV:"#2E8B57", UP:"#B00000",
+  SOLIDARIEDADE:"#FF4500", AGIR:"#0047AB", CIDADANIA:"#FF6B35", PMB:"#00A0A0",
+  MOBILIZA:"#8B008B", "PRTB":"#003366",
+};
+
+// Textos oficiais TSE de transparência de cada filtro
+const INFO: Record<string,{def:string;fonte:string}> = {
+  ge: { def:"Descrição do gênero da candidata ou candidato. Pode assumir os valores: Masculino e Feminino.", fonte:"Registrado pela Justiça Eleitoral" },
+  co: { def:"Cor/raça é autodeclarada dentre as opções: Branca, Preta, Parda, Amarela, Indígena e Não Informado.", fonte:"Autodeclarado pela candidata ou candidato" },
+  fx: { def:"Idade calculada com base na data da posse para o cargo e unidade eleitoral.", fonte:"Calculado pela Justiça Eleitoral" },
+  ca: { def:"Descrição do cargo ao qual a candidata ou candidato concorre.", fonte:"Registrado pela Justiça Eleitoral" },
+  es: { def:"Grau de instrução: Analfabeto, Lê e escreve, Fundamental/Médio/Superior (in)completo.", fonte:"Autodeclarado pela candidata ou candidato" },
+  oc: { def:"Descrição da ocupação declarada pela candidata ou candidato.", fonte:"Autodeclarado pela candidata ou candidato" },
+  ql: { def:"Indica se a candidata ou candidato considera-se quilombola.", fonte:"Autodeclarado pela candidata ou candidato" },
+  ind:{ def:"Etnia indígena autodeclarada, dentre as opções idênticas às do cadastro eleitoral.", fonte:"Autodeclarado pela candidata ou candidato" },
+  bn: { def:"Indica se a candidata ou candidato possui bens a declarar à Justiça Eleitoral.", fonte:"Autodeclarado pela candidata ou candidato" },
+};
+
+const REDE_ICON: Record<string,{i:string;c:string;l:string}> = {
+  instagram:{i:"📷",c:"#E1306C",l:"Instagram"}, facebook:{i:"👤",c:"#1877F2",l:"Facebook"},
+  tiktok:{i:"🎵",c:"#000000",l:"TikTok"}, youtube:{i:"▶️",c:"#FF0000",l:"YouTube"},
+  threads:{i:"🧵",c:"#000000",l:"Threads"}, twitter:{i:"🐦",c:"#1DA1F2",l:"X / Twitter"},
+  linkedin:{i:"💼",c:"#0A66C2",l:"LinkedIn"}, kwai:{i:"📹",c:"#FF6600",l:"Kwai"},
+  site:{i:"🌐",c:"#6B1FA8",l:"Site"},
 };
 
 const getIbg = (co: string) => COR_COR[co] ?? "#9B5DE5";
-const getPtc = (pt: string) => PT_COR[pt] ?? "#555";
+const getPtc = (pt: string) => PT_COR[pt] ?? "#666";
 const fotoUrl = (c: Candidato) =>
-  `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/${c.cd}/${c.sq}/${c.ue}`;
+  `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/2045202026/${c.sq}/${c.ue}`;
 const tseUrl = (c: Candidato) =>
-  `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${c.re}/${c.uf}/${c.cd}/${c.sq}/${c.an}/${c.ue}`;
+  `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/2045202026/${c.uf}/2045202026/${c.sq}`;
 
 function passaFiltros(c: Candidato, f: Filtros): boolean {
   if (f.ge && c.ge !== f.ge) return false;
   if (f.co && c.co !== f.co) return false;
   if (f.oc && c.oc !== f.oc) return false;
   if (f.ca && c.ca !== f.ca) return false;
-  if (f.mu && c.mu !== f.mu) return false;
-  if (f.fx) {
-    const faixa = FAIXAS.find(x => x.label === f.fx);
-    if (faixa && (c.idade < faixa.min || c.idade > faixa.max)) return false;
-  }
+  if (f.es && c.es !== f.es) return false;
+  if (f.ql && !c.ql) return false;
+  if (f.ind && !c.ei) return false;
+  if (f.bn && !c.bn) return false;
+  if (f.fx) { const fx = FAIXAS.find(x => x.label === f.fx); if (fx && (c.idade < fx.min || c.idade > fx.max)) return false; }
   return true;
 }
 
 function FotoCard({ c }: { c: Candidato }) {
   const [err, setErr] = useState(false);
-  if (!err) return (
-    <div className="card-foto">
-      <img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} />
-    </div>
-  );
-  return <div className="card-foto-fb" style={{ background: getIbg(c.co) }}>{c.n.charAt(0)}</div>;
+  if (!err) return <div className="foto-wrap"><img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} /></div>;
+  return <div className="foto-wrap foto-fb" style={{ background: `linear-gradient(135deg, ${getIbg(c.co)}, ${getIbg(c.co)}99)` }}>{c.n.charAt(0)}</div>;
 }
-
 function FotoModal({ c }: { c: Candidato }) {
   const [err, setErr] = useState(false);
-  if (!err) return (
-    <div className="modal-foto">
-      <img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} />
-    </div>
+  if (!err) return <div className="mfoto-wrap"><img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} /></div>;
+  return <div className="mfoto-wrap mfoto-fb" style={{ background: `linear-gradient(135deg, ${getIbg(c.co)}, ${getIbg(c.co)}99)` }}>{c.n.charAt(0)}</div>;
+}
+
+// Tooltip de transparência
+function InfoIcon({ k }: { k: string }) {
+  const [open, setOpen] = useState(false);
+  const info = INFO[k];
+  if (!info) return null;
+  return (
+    <span className="info-wrap">
+      <button className="info-btn" onClick={e => { e.stopPropagation(); setOpen(o => !o); }}>ⓘ</button>
+      {open && (
+        <>
+          <div className="info-backdrop" onClick={e => { e.stopPropagation(); setOpen(false); }} />
+          <div className="info-pop" onClick={e => e.stopPropagation()}>
+            <div className="info-def">{info.def}</div>
+            <div className="info-fonte">📋 {info.fonte}</div>
+          </div>
+        </>
+      )}
+    </span>
   );
-  return <div className="modal-foto-fb" style={{ background: getIbg(c.co) }}>{c.n.charAt(0)}</div>;
 }
 
 function PickerModal({ title, items, selected, onSelect, onClose }: {
@@ -74,13 +109,8 @@ function PickerModal({ title, items, selected, onSelect, onClose }: {
 }) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const filtered = useMemo(() =>
-    items.filter(i => i.toLowerCase().includes(q.toLowerCase()))
-  , [items, q]);
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 100);
-    return () => clearTimeout(t);
-  }, []);
+  const filtered = useMemo(() => items.filter(i => i.toLowerCase().includes(q.toLowerCase())), [items, q]);
+  useEffect(() => { const t = setTimeout(() => inputRef.current?.focus(), 100); return () => clearTimeout(t); }, []);
   return (
     <div className="picker-ov" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="picker-box">
@@ -88,15 +118,9 @@ function PickerModal({ title, items, selected, onSelect, onClose }: {
           <div className="picker-title">{title}</div>
           <button className="picker-close" onClick={onClose}>✕</button>
         </div>
-        <div className="picker-search-wrap">
-          <input ref={inputRef} className="picker-search"
-            placeholder={`Buscar ${title.toLowerCase()}...`}
-            value={q} onChange={e => setQ(e.target.value)} />
-        </div>
+        <div className="picker-sw"><input ref={inputRef} className="picker-search" placeholder={`Buscar ${title.toLowerCase()}...`} value={q} onChange={e => setQ(e.target.value)} /></div>
         <div className="picker-list">
-          {selected && (
-            <div className="picker-item selected" onClick={() => { onSelect(selected); onClose(); }}>✓ {selected}</div>
-          )}
+          {selected && <div className="picker-item sel" onClick={() => { onSelect(selected); onClose(); }}>✓ {selected}</div>}
           {filtered.filter(i => i !== selected).map(v => (
             <div key={v} className="picker-item" onClick={() => { onSelect(v); onClose(); }}>{v}</div>
           ))}
@@ -107,317 +131,272 @@ function PickerModal({ title, items, selected, onSelect, onClose }: {
   );
 }
 
-function WelcomeScreen({ onStart }: { onStart: () => void }) {
+function WelcomeScreen({ onStart, total }: { onStart: () => void; total: number }) {
   return (
     <div className="welcome">
-      <div className="welcome-content">
-        <div className="welcome-logo">
-          <span className="wl-me">ME</span>
-          <span className="wl-rep">REPRESENTA</span>
-          <span className="wl-q">?</span>
-        </div>
-        <div className="welcome-tagline">
-          Encontre candidatos que têm o mesmo perfil que você
+      <div className="welcome-inner">
+        <div className="welcome-badge">🗳️ Eleições Gerais · Pará · 2026</div>
+        <h1 className="welcome-logo"><span className="wme">ME</span><span className="wrep">REPRESENTA</span><span className="wq">?</span></h1>
+        <p className="welcome-tag">Encontre candidatos que têm o mesmo perfil que você</p>
+
+        <div className="welcome-hero-number">
+          <span className="whn-num">{total.toLocaleString()}</span>
+          <span className="whn-label">candidatos para você explorar</span>
         </div>
 
         <div className="welcome-cards">
-          <div className="wcard">
-            <div className="wcard-icon">⚖️</div>
-            <div className="wcard-title">Representação real</div>
-            <div className="wcard-text">O legislativo deveria ser um espelho da sociedade — mas não é. A maioria dos parlamentares ainda são homens brancos de classe alta.</div>
-          </div>
-          <div className="wcard">
-            <div className="wcard-icon">👥</div>
-            <div className="wcard-title">Sua identidade importa</div>
-            <div className="wcard-text">Uma professora negra conhece os problemas reais e pode propor políticas públicas que um político rico jamais pensaria.</div>
-          </div>
-          <div className="wcard">
-            <div className="wcard-icon">🗳️</div>
-            <div className="wcard-title">Esse espaço é nosso</div>
-            <div className="wcard-text">Use os filtros para encontrar candidatos com seu perfil. Depois descubra quem também pensa como você. O poder pertence a todos.</div>
-          </div>
+          {[
+            { icon:"⚖️", title:"Representação real", text:"O legislativo deveria ser um espelho da sociedade — mas não é. A maioria dos parlamentares ainda são homens brancos de classe alta." },
+            { icon:"👥", title:"Sua identidade importa", text:"Uma professora negra conhece os problemas reais e pode propor políticas públicas que um político rico jamais pensaria." },
+            { icon:"🗳️", title:"Esse espaço é nosso", text:"Filtre por perfil, descubra quem pensa como você e entre em contato direto pelas redes sociais. O poder pertence a todos." },
+          ].map(({ icon, title, text }) => (
+            <div key={title} className="wcard">
+              <div className="wcard-icon">{icon}</div>
+              <div className="wcard-title">{title}</div>
+              <div className="wcard-text">{text}</div>
+            </div>
+          ))}
         </div>
 
         <div className="welcome-mission">
-          <p>
-            O <strong>MeRepresenta</strong> nasceu de uma pergunta simples:{" "}
-            <em>por que quem decide sobre a nossa vida não se parece com a gente?</em>
-          </p>
-          <p>
-            Comparando o Censo do IBGE com a composição do legislativo, os números são gritantes.
-            Pretos, pardos, indígenas, mulheres e jovens são maioria na população — mas minoria no poder.
-            Isso não é coincidência: é o reflexo de décadas de exclusão estrutural.
-          </p>
-          <p>
-            O MeRepresenta também traz visibilidade para candidatos com boas ideias mas sem dinheiro
-            para se fazerem ver em campanhas eleitorais. Use os filtros, encontre quem te representa
-            — e leve esse espaço de volta para o povo.
-          </p>
-          <div className="welcome-source">
-            🔍 Dados oficiais das Eleições Municipais 2024 · Estado do Pará · Fonte: TSE
-          </div>
+          <p>O <strong>MeRepresenta</strong> nasceu de uma pergunta simples: <em>por que quem decide sobre a nossa vida não se parece com a gente?</em></p>
+          <p>Comparando o Censo do IBGE com a composição do legislativo, os números são gritantes. Pretos, pardos, indígenas, mulheres e jovens são maioria na população — mas minoria no poder.</p>
+          <p>Aqui você filtra candidatos por características, encontra quem te representa e pode segui-los nas redes — dando visibilidade a quem tem boas ideias mas não tem dinheiro de campanha.</p>
+          <div className="welcome-source">🔍 Dados oficiais das Eleições Gerais 2026 · Estado do Pará · Fonte: TSE</div>
         </div>
 
-        <button className="welcome-btn" onClick={onStart}>
-          Explorar candidatos →
-        </button>
+        <button className="welcome-btn" onClick={onStart}>Explorar candidatos →</button>
       </div>
     </div>
   );
 }
 
+const PAGE_SIZE = 24;
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#FAF7F2;
-  --bg2:#F2EDE4;
-  --bg3:#FFFFFF;
-  --card-border:#E8E0D4;
-  --pink:#E8006A;
-  --purple:#7B2FBE;
-  --green:#00A550;
-  --gold:#D4900A;
-  --text:#1C1C2E;
-  --text2:#4A4A6A;
-  --muted:#9090A8;
-  --sw:300px;
+  --bg:#F7F4EF;--bg2:#EEEAE2;--bg3:#FFFFFF;--border:#E2DDD5;
+  --pink:#D4005A;--purple:#6B1FA8;--blue:#1A5CBE;--green:#00884A;--gold:#B8780A;
+  --grad:linear-gradient(135deg,var(--pink),var(--purple));
+  --text:#1A1A2E;--text2:#4A4865;--muted:#9090A8;
+  --sw:272px; --radius:16px;
 }
 html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;}
 
-/* Loading */
-.loading{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:var(--bg);}
-.logo-load{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,12vw,100px);letter-spacing:2px;line-height:1;}
-.pbar{width:180px;height:3px;border-radius:99px;background:#E0D8CC;overflow:hidden;}
-.pfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pink),var(--purple));transition:width .4s;}
+.loading{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);}
+.load-logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(56px,12vw,110px);letter-spacing:2px;line-height:1;}
+.pbar{width:200px;height:3px;border-radius:99px;background:#DDD8CF;overflow:hidden;}
+.pfill{height:100%;border-radius:99px;background:var(--grad);transition:width .4s;}
 .ptxt{font-size:11px;color:var(--muted);}
 
-/* Welcome */
 .welcome{min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:40px 20px;}
-.welcome-content{max-width:640px;width:100%;}
-.welcome-logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(56px,14vw,120px);line-height:.9;letter-spacing:2px;margin-bottom:14px;}
-.wl-me{background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.wl-rep{color:var(--text);}
-.wl-q{color:var(--gold);}
-.welcome-tagline{font-size:clamp(15px,3vw,20px);color:var(--text2);margin-bottom:32px;font-weight:600;}
-.welcome-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;}
-@media(max-width:520px){.welcome-cards{grid-template-columns:1fr;}}
-.wcard{background:#fff;border:1.5px solid var(--card-border);border-radius:16px;padding:18px 16px;box-shadow:0 2px 12px rgba(0,0,0,.06);}
-.wcard-icon{font-size:26px;margin-bottom:8px;}
-.wcard-title{font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px;}
+.welcome-inner{max-width:660px;width:100%;}
+.welcome-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;background:#fff;border:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--text2);margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.welcome-logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(60px,15vw,130px);line-height:.9;letter-spacing:2px;margin-bottom:12px;}
+.wme{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.wrep{color:var(--text);}.wq{color:var(--gold);}
+.welcome-tag{font-size:clamp(15px,3vw,20px);color:var(--text2);font-weight:600;margin-bottom:32px;}
+.welcome-hero-number{background:var(--grad);border-radius:20px;padding:28px 32px;margin-bottom:28px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.whn-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,10vw,80px);letter-spacing:2px;line-height:1;}
+.whn-label{font-size:16px;font-weight:600;opacity:.92;max-width:200px;line-height:1.4;}
+.welcome-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+@media(max-width:540px){.welcome-cards{grid-template-columns:1fr;}}
+.wcard{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 16px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+.wcard-icon{font-size:24px;margin-bottom:8px;}
+.wcard-title{font-weight:700;font-size:13px;color:var(--text);margin-bottom:5px;}
 .wcard-text{font-size:12px;color:var(--text2);line-height:1.6;}
-.welcome-mission{background:#fff;border:1.5px solid var(--card-border);border-radius:16px;padding:24px;margin-bottom:28px;box-shadow:0 2px 12px rgba(0,0,0,.06);}
-.welcome-mission p{font-size:14px;color:var(--text2);line-height:1.8;margin-bottom:12px;}
-.welcome-mission p:last-of-type{margin-bottom:0;}
-.welcome-mission strong{color:var(--text);font-weight:700;}
-.welcome-mission em{color:var(--pink);font-style:normal;font-weight:600;}
-.welcome-source{margin-top:16px;font-size:11px;color:var(--muted);padding-top:12px;border-top:1px solid var(--card-border);}
-.welcome-btn{width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;
-  font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;
-  background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;
-  letter-spacing:.5px;transition:all .2s;box-shadow:0 6px 24px rgba(123,47,190,.3);}
-.welcome-btn:hover{transform:scale(1.02);box-shadow:0 10px 32px rgba(123,47,190,.45);}
+.welcome-mission{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:24px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+.welcome-mission p{font-size:14px;color:var(--text2);line-height:1.8;margin-bottom:10px;}
+.welcome-mission p:last-child{margin-bottom:0;}
+.welcome-mission strong{color:var(--text);}
+.welcome-mission em{color:var(--pink);font-style:normal;font-weight:700;}
+.welcome-source{margin-top:16px;font-size:11px;color:var(--muted);padding-top:12px;border-top:1px solid var(--border);}
+.welcome-btn{width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;background:var(--grad);color:#fff;letter-spacing:.3px;transition:all .2s;box-shadow:0 6px 24px rgba(107,31,168,.3);}
+.welcome-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(107,31,168,.45);}
 
-/* App layout */
 .app{display:flex;min-height:100vh;}
-
-/* Sidebar */
-.sb{width:var(--sw);flex-shrink:0;background:var(--bg2);border-right:1.5px solid var(--card-border);
-  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;
-  overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1);}
-.sb-hd{padding:20px 20px 14px;border-bottom:1.5px solid var(--card-border);flex-shrink:0;}
-.sb-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;}
-.sb-logo .lme{background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.sb-logo .lrep{color:var(--text);}
-.sb-logo .lq{color:var(--gold);}
-.logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
-.sb-body{flex:1;overflow-y:auto;padding:14px 18px 80px;}
+.sb{width:var(--sw);flex-shrink:0;background:var(--bg3);border-right:1.5px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:2px 0 16px rgba(0,0,0,.06);}
+.sb-hd{padding:20px 18px 14px;border-bottom:1.5px solid var(--border);flex-shrink:0;}
+.sb-logo{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;}
+.sb-logo .lme{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sb-logo .lrep{color:var(--text);}.sb-logo .lq{color:var(--gold);}
+.logo-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.sb-body{flex:1;overflow-y:auto;padding:14px 16px 80px;}
 .sb-body::-webkit-scrollbar{width:3px;}
-.sb-body::-webkit-scrollbar-thumb{background:#D0C8BC;border-radius:99px;}
+.sb-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
 
-.aviso{background:#FFF8E6;border:1px solid #F0D080;border-radius:8px;
-  padding:8px 10px;font-size:10px;color:#8A6800;line-height:1.5;margin-bottom:14px;}
-.aviso strong{color:#6A4800;}
+.aviso{background:#FFFBEC;border:1px solid #F5D060;border-radius:10px;padding:9px 11px;font-size:10px;color:#7A6000;line-height:1.5;margin-bottom:14px;}
+.aviso strong{color:#5A4400;}
 .fsec{margin-bottom:18px;}
-.ftit{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.ftit{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:4px;}
 .chips{display:flex;flex-wrap:wrap;gap:5px;}
-.chip{padding:5px 12px;border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;
-  border:1.5px solid var(--card-border);background:#fff;color:var(--text2);
-  transition:all .15s;user-select:none;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06);}
-.chip:hover{border-color:var(--purple);color:var(--purple);}
-.chip.on{border-color:var(--c);background:var(--c);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.chip{padding:5px 12px;border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);transition:all .18s;user-select:none;white-space:nowrap;}
+.chip:hover{border-color:var(--purple);color:var(--purple);background:#fff;}
+.chip.on{border-color:var(--c,var(--purple));background:var(--c,var(--purple));color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);}
 
-.tog-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
-.tog-lbl{font-size:12px;font-weight:600;color:var(--text);}
-.tog{position:relative;width:40px;height:22px;cursor:pointer;}
-.tog input{opacity:0;width:0;height:0;}
-.tog-tr{position:absolute;inset:0;background:#D0C8BC;border-radius:99px;transition:.2s;}
-.tog input:checked+.tog-tr{background:var(--green);}
-.tog-th{position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.2);}
-.tog input:checked~.tog-th{left:21px;}
+.info-wrap{position:relative;display:inline-flex;}
+.info-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1;transition:color .15s;}
+.info-btn:hover{color:var(--purple);}
+.info-backdrop{position:fixed;inset:0;z-index:150;}
+.info-pop{position:absolute;top:20px;left:0;z-index:151;width:230px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);animation:popIn .15s ease;}
+@keyframes popIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.info-def{font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:8px;font-weight:400;text-transform:none;letter-spacing:0;}
+.info-fonte{font-size:10px;color:var(--purple);font-weight:700;padding-top:8px;border-top:1px solid var(--border);text-transform:none;letter-spacing:0;}
 
-.sel-btn{width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--card-border);
-  background:#fff;color:var(--text2);font-family:inherit;font-size:12px;
-  cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;
-  transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.06);}
-.sel-btn:hover{border-color:var(--purple);}
-.sel-btn-arrow{font-size:10px;color:var(--muted);}
+.toggle-filter{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);margin-bottom:6px;cursor:pointer;transition:all .15s;}
+.toggle-filter:hover{border-color:var(--purple);}
+.toggle-filter.on{border-color:var(--pink);background:rgba(212,0,90,.05);}
+.tf-label{font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
+.tf-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.toggle-filter.on .tf-check{background:var(--pink);border-color:var(--pink);color:#fff;font-size:12px;}
 
-.srch{width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--card-border);
-  background:#fff;color:var(--text);font-family:inherit;font-size:12px;margin-bottom:6px;outline:none;}
-.srch:focus{border-color:var(--purple);}
-.slist{display:flex;flex-direction:column;gap:2px;max-height:140px;overflow-y:auto;}
+.sel-btn{width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);font-family:inherit;font-size:12px;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;transition:all .15s;}
+.sel-btn:hover{border-color:var(--purple);background:#fff;}
+.sel-arrow{font-size:10px;color:var(--muted);}
+.srch{width:100%;padding:8px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;font-size:12px;margin-bottom:6px;outline:none;transition:.15s;}
+.srch:focus{border-color:var(--purple);background:#fff;}
+.slist{display:flex;flex-direction:column;gap:1px;max-height:140px;overflow-y:auto;}
 .slist::-webkit-scrollbar{width:3px;}
-.slist::-webkit-scrollbar-thumb{background:#D0C8BC;border-radius:99px;}
-.sit{padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;color:var(--text2);transition:all .12s;}
-.sit:hover{background:rgba(123,47,190,.08);color:var(--purple);}
-.sit.on{background:rgba(123,47,190,.1);color:var(--purple);font-weight:600;}
+.slist::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+.sit{padding:6px 8px;border-radius:8px;font-size:11px;cursor:pointer;color:var(--text2);transition:all .12s;}
+.sit:hover{background:var(--bg2);color:var(--purple);}
+.sit.on{background:rgba(107,31,168,.08);color:var(--purple);font-weight:700;}
+.rst-btn{width:100%;padding:9px;border-radius:10px;border:1.5px dashed rgba(212,0,90,.3);background:transparent;color:var(--pink);font-family:inherit;font-size:12px;cursor:pointer;transition:all .2s;margin-top:6px;font-weight:700;}
+.rst-btn:hover{background:rgba(212,0,90,.06);}
 
-.rst-btn{width:100%;padding:9px;border-radius:8px;border:1.5px dashed #E8A0C0;
-  background:transparent;color:var(--pink);font-family:inherit;font-size:12px;cursor:pointer;
-  transition:all .2s;margin-top:6px;font-weight:600;}
-.rst-btn:hover{background:rgba(232,0,106,.06);}
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.hero{padding:28px 28px 0;background:var(--bg);}
+.hero-inner{background:var(--grad);border-radius:22px;padding:28px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;overflow:hidden;position:relative;}
+.hero-inner::after{content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07);}
+.hero-inner::before{content:'';position:absolute;right:60px;bottom:-60px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.05);}
+.hero-left{position:relative;z-index:1;}
+.hero-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,7vw,80px);color:#fff;letter-spacing:2px;line-height:1;}
+.hero-label{font-size:15px;font-weight:600;color:rgba(255,255,255,.85);margin-top:4px;}
+.hero-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:4px;}
+.hero-right{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1;}
+.hero-stat{background:rgba(255,255,255,.15);border-radius:12px;padding:10px 16px;text-align:center;backdrop-filter:blur(10px);}
+.hero-stat-n{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#fff;line-height:1;}
+.hero-stat-l{font-size:10px;color:rgba(255,255,255,.75);font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
 
-/* Main */
-.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
-.mhd{padding:20px 24px 14px;border-bottom:1.5px solid var(--card-border);background:var(--bg);position:sticky;top:0;z-index:50;}
-.mhd-logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:6px;}
-.mhd-logo .lme{background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.mhd-logo .lrep{color:var(--text);}
-.mhd-logo .lq{color:var(--gold);}
-.cnt-big{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:var(--text);}
-.cnt-big span{background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.cnt-sub{font-size:11px;color:var(--muted);margin-top:3px;}
-.pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;}
-.pill{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:11px;
-  font-weight:600;background:rgba(232,0,106,.08);border:1px solid rgba(232,0,106,.2);
-  color:var(--pink);cursor:pointer;transition:all .15s;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.pill:hover{background:rgba(232,0,106,.15);}
+.filter-bar{padding:16px 28px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.fb-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
+.fb-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;background:var(--grad);color:#fff;cursor:pointer;transition:all .15s;animation:chipIn .2s ease;}
+.fb-chip:hover{opacity:.85;transform:scale(.97);}
+.fb-chip span{font-size:11px;opacity:.8;}
+@keyframes chipIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+.fb-clear{padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;border:1.5px solid rgba(212,0,90,.3);color:var(--pink);background:transparent;cursor:pointer;transition:all .15s;}
+.fb-clear:hover{background:rgba(212,0,90,.07);}
 
-.gw{padding:18px 24px 24px;flex:1;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.gw{padding:18px 28px 40px;flex:1;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;}
+.card{background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;overflow:hidden;cursor:pointer;transition:transform .22s,box-shadow .22s,border-color .22s;box-shadow:0 2px 8px rgba(0,0,0,.05);animation:fadeUp .3s ease both;}
+.card:hover{transform:translateY(-5px);border-color:rgba(107,31,168,.25);box-shadow:0 12px 32px rgba(107,31,168,.14);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.foto-wrap{width:100%;height:170px;overflow:hidden;position:relative;background:var(--bg2);}
+.foto-wrap img{width:100%;height:100%;object-fit:cover;object-position:top center;transition:transform .3s;}
+.card:hover .foto-wrap img{transform:scale(1.04);}
+.foto-fb{display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:56px;color:#fff;}
+.card-badges{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:4px;}
+.badge-q{background:#00884A;color:#fff;font-size:9px;font-weight:800;padding:3px 8px;border-radius:99px;letter-spacing:.3px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.badge-i{background:#7B4513;color:#fff;font-size:9px;font-weight:800;padding:3px 8px;border-radius:99px;letter-spacing:.3px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.rede-count{position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.92);color:var(--purple);font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;}
+.card-body{padding:14px;}
+.card-name{font-weight:700;font-size:13px;line-height:1.3;margin-bottom:2px;color:var(--text);}
+.card-cargo{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+.card-pt{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;color:#fff;margin-bottom:10px;}
+.card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;}
+.ctag{font-size:10px;padding:3px 8px;border-radius:99px;border:1px solid var(--border);color:var(--text2);background:var(--bg);}
+.ctag.m{border-color:var(--c);color:var(--c);background:rgba(107,31,168,.06);}
+.card-btn{display:flex;align-items:center;justify-content:center;width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:12px;font-weight:700;color:var(--purple);cursor:pointer;transition:all .18s;gap:4px;}
+.card-btn:hover{background:var(--grad);border-color:transparent;color:#fff;}
 
-/* Card */
-.card{background:var(--bg3);border:1.5px solid var(--card-border);border-radius:16px;padding:16px;
-  cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;
-  box-shadow:0 2px 8px rgba(0,0,0,.05);}
-.card:hover{transform:translateY(-3px);border-color:#C0A8D8;box-shadow:0 8px 24px rgba(123,47,190,.15);}
-.card-foto{width:58px;height:58px;border-radius:12px;overflow:hidden;flex-shrink:0;margin-bottom:10px;border:2px solid var(--card-border);}
-.card-foto img{width:100%;height:100%;object-fit:cover;object-position:top;}
-.card-foto-fb{width:58px;height:58px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;margin-bottom:10px;}
-.cn{font-weight:700;font-size:13px;line-height:1.3;margin-bottom:2px;color:var(--text);}
-.cca{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px;}
-.cpt{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;margin-bottom:9px;}
-.ctags{display:flex;flex-wrap:wrap;gap:3px;}
-.ctag{font-size:10px;padding:2px 7px;border-radius:99px;border:1px solid var(--card-border);color:var(--text2);background:var(--bg2);}
-.ctag.m{border-color:var(--c);color:var(--c);background:rgba(123,47,190,.07);}
-.edot{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(0,165,80,.4);}
+.load-more-wrap{text-align:center;padding:0 28px 40px;}
+.load-more-btn{padding:14px 40px;border-radius:12px;border:2px solid var(--border);background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.load-more-btn:hover{border-color:var(--purple);color:var(--purple);transform:translateY(-2px);box-shadow:0 6px 20px rgba(107,31,168,.12);}
 
-/* Modal */
-.ov{position:fixed;inset:0;background:rgba(28,28,46,.6);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;}
+.ov{position:fixed;inset:0;background:rgba(26,26,46,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;backdrop-filter:blur(4px);}
 @media(min-width:600px){.ov{align-items:center;}}
-.modal{background:var(--bg3);border:1.5px solid var(--card-border);width:100%;max-width:460px;
-  border-radius:20px 20px 0 0;padding:26px 22px;position:relative;
-  animation:sup .26s cubic-bezier(.4,0,.2,1);max-height:90vh;overflow-y:auto;
-  box-shadow:0 -8px 40px rgba(0,0,0,.1);}
-@media(min-width:600px){.modal{border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.15);}}
-@keyframes sup{from{transform:translateY(36px);opacity:0}to{transform:none;opacity:1}}
+.modal{background:var(--bg3);border:1.5px solid var(--border);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:28px 24px;position:relative;animation:sup .26s cubic-bezier(.4,0,.2,1);max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,.1);}
+@media(min-width:600px){.modal{border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,.18);}}
+@keyframes sup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 @keyframes fin{from{opacity:0}to{opacity:1}}
-.mcl{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;
-  border:1.5px solid var(--card-border);background:var(--bg2);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px;}
-.mcl:hover{background:#E8E0D4;color:var(--text);}
-.modal-top{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;}
-.modal-foto{width:80px;height:80px;border-radius:14px;overflow:hidden;flex-shrink:0;border:2px solid var(--card-border);}
-.modal-foto img{width:100%;height:100%;object-fit:cover;object-position:top;}
-.modal-foto-fb{width:80px;height:80px;border-radius:14px;display:flex;align-items:center;
-  justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:38px;color:#fff;flex-shrink:0;}
+.mcl{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px;transition:all .15s;z-index:2;}
+.mcl:hover{background:var(--bg);color:var(--text);}
+.modal-top{display:flex;gap:18px;align-items:flex-start;margin-bottom:18px;}
+.mfoto-wrap{width:90px;height:90px;border-radius:16px;overflow:hidden;flex-shrink:0;border:2px solid var(--border);}
+.mfoto-wrap img{width:100%;height:100%;object-fit:cover;object-position:top;}
+.mfoto-fb{width:90px;height:90px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:42px;color:#fff;flex-shrink:0;}
 .modal-info{flex:1;min-width:0;}
-.mnome{font-weight:700;font-size:17px;line-height:1.2;margin-bottom:2px;color:var(--text);}
-.mcargo{font-size:11px;color:var(--muted);margin-bottom:3px;}
-.mpt{display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;margin-top:6px;}
-.elbadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;
-  background:rgba(0,165,80,.1);border:1px solid rgba(0,165,80,.25);color:var(--green);font-size:11px;font-weight:700;margin-top:6px;}
-.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;}
-.minfo{background:var(--bg2);border:1px solid var(--card-border);border-radius:10px;padding:10px;}
-.ml{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.mnome{font-weight:800;font-size:18px;line-height:1.2;margin-bottom:3px;color:var(--text);}
+.mcargo{font-size:12px;color:var(--muted);margin-bottom:3px;}
+.mpt{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#fff;margin-top:6px;}
+.mbadges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.mbadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;}
+.mbadge.q{background:rgba(0,136,74,.1);border:1.5px solid rgba(0,136,74,.25);color:var(--green);}
+.mbadge.i{background:rgba(123,69,19,.1);border:1.5px solid rgba(123,69,19,.25);color:#7B4513;}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0;}
+.minfo{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:11px;}
+.ml{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
 .mv{font-size:12px;font-weight:600;line-height:1.3;color:var(--text);}
-.tbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;
-  border-radius:12px;font-family:inherit;font-size:14px;font-weight:800;
-  background:linear-gradient(135deg,var(--pink),var(--purple));
-  color:#fff;border:none;cursor:pointer;transition:all .2s;text-decoration:none;
-  box-shadow:0 4px 16px rgba(123,47,190,.3);}
-.tbtn:hover{opacity:.92;transform:scale(1.01);}
-.maviso{background:#FFF8E6;border:1px solid #F0D080;border-radius:8px;
-  padding:8px 10px;font-size:10px;color:#8A6800;line-height:1.5;margin-bottom:14px;}
 
-/* Picker */
-.picker-ov{position:fixed;inset:0;background:rgba(28,28,46,.6);z-index:300;
-  display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;}
-.picker-box{background:var(--bg3);width:100%;max-width:480px;border-radius:20px 20px 0 0;
-  display:flex;flex-direction:column;max-height:80vh;box-shadow:0 -8px 40px rgba(0,0,0,.1);}
-.picker-hd{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 12px;
-  border-bottom:1.5px solid var(--card-border);}
-.picker-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;
-  background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.picker-close{background:var(--bg2);border:1.5px solid var(--card-border);color:var(--text2);
-  width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
-.picker-search-wrap{padding:12px 16px;flex-shrink:0;background:var(--bg3);}
-.picker-search{width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid rgba(123,47,190,.3);
-  background:var(--bg2);color:var(--text);font-family:inherit;font-size:14px;outline:none;}
+.redes-sec{margin:16px 0;}
+.redes-tit{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.redes-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.rede-link{display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);text-decoration:none;font-size:12px;font-weight:700;color:var(--text);transition:all .18s;}
+.rede-link:hover{border-color:var(--c);background:#fff;transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.1);}
+.rede-emoji{font-size:16px;}
+.redes-empty{font-size:12px;color:var(--muted);padding:12px;background:var(--bg2);border-radius:12px;text-align:center;line-height:1.5;}
+
+.maviso{background:#FFFBEC;border:1px solid #F5D060;border-radius:10px;padding:9px 11px;font-size:10px;color:#7A6000;line-height:1.5;margin-bottom:14px;}
+.tbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:13px;font-family:inherit;font-size:14px;font-weight:800;background:var(--grad);color:#fff;border:none;cursor:pointer;transition:all .2s;text-decoration:none;box-shadow:0 4px 16px rgba(107,31,168,.25);}
+.tbtn:hover{opacity:.92;transform:translateY(-1px);}
+
+.picker-ov{position:fixed;inset:0;background:rgba(26,26,46,.55);z-index:300;display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;backdrop-filter:blur(4px);}
+.picker-box{background:var(--bg3);width:100%;max-width:480px;border-radius:24px 24px 0 0;display:flex;flex-direction:column;max-height:82vh;box-shadow:0 -8px 40px rgba(0,0,0,.12);}
+.picker-hd{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;border-bottom:1.5px solid var(--border);}
+.picker-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.picker-close{background:var(--bg2);border:1.5px solid var(--border);color:var(--text2);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.picker-sw{padding:12px 18px;flex-shrink:0;}
+.picker-search{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(107,31,168,.25);background:var(--bg2);color:var(--text);font-family:inherit;font-size:14px;outline:none;}
 .picker-search:focus{border-color:var(--purple);}
-.picker-list{flex:1;overflow-y:auto;padding:0 16px 24px;background:var(--bg3);}
+.picker-list{flex:1;overflow-y:auto;padding:0 18px 32px;}
 .picker-list::-webkit-scrollbar{width:3px;}
-.picker-list::-webkit-scrollbar-thumb{background:#D0C8BC;border-radius:99px;}
-.picker-item{padding:13px 12px;border-bottom:1px solid var(--card-border);font-size:14px;
-  cursor:pointer;color:var(--text);transition:all .12s;border-radius:8px;}
-.picker-item:hover{background:rgba(123,47,190,.07);color:var(--purple);}
-.picker-item.selected{color:var(--pink);font-weight:700;}
-.picker-empty{text-align:center;padding:24px;color:var(--muted);font-size:13px;}
+.picker-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+.picker-item{padding:14px 12px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;color:var(--text);transition:all .12s;border-radius:8px;}
+.picker-item:hover{background:rgba(107,31,168,.06);color:var(--purple);}
+.picker-item.sel{color:var(--pink);font-weight:700;}
+.picker-empty{text-align:center;padding:28px;color:var(--muted);font-size:13px;}
 
-/* Mobile */
 .mob-bar{display:none;}.fab{display:none;}.sb-pull{display:none;}.sb-ov{display:none;}.sb-close-btn{display:none;}
 @media(max-width:767px){
   :root{--sw:100%;}
-  .sb{position:fixed;top:auto;bottom:0;left:0;right:0;height:90vh;
-    border-right:none;border-top:2px solid var(--card-border);
-    border-radius:22px 22px 0 0;transform:translateY(100%);}
+  .sb{position:fixed;top:auto;bottom:0;left:0;right:0;height:91vh;border-right:none;border-top:2px solid var(--border);border-radius:24px 24px 0 0;transform:translateY(100%);box-shadow:0 -8px 40px rgba(0,0,0,.1);}
   .sb.open{transform:translateY(0);}
-  .sb-pull{display:block;width:40px;height:4px;border-radius:99px;
-    background:#D0C8BC;margin:12px auto 0;flex-shrink:0;}
+  .sb-pull{display:block;width:40px;height:4px;border-radius:99px;background:var(--border);margin:12px auto 0;flex-shrink:0;}
   .sb-hd{padding-top:12px;position:relative;}
-  .sb-close-btn{display:flex;position:absolute;top:12px;right:16px;
-    width:32px;height:32px;border-radius:50%;border:1.5px solid var(--card-border);
-    background:var(--bg2);align-items:center;justify-content:center;
-    color:var(--text2);font-size:15px;cursor:pointer;}
-  .sb-ov{position:fixed;inset:0;background:rgba(28,28,46,.5);z-index:99;animation:fin .2s;}
+  .sb-close-btn{display:flex;position:absolute;top:12px;right:14px;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);align-items:center;justify-content:center;color:var(--text2);font-size:14px;cursor:pointer;}
+  .sb-ov{position:fixed;inset:0;background:rgba(26,26,46,.5);z-index:99;animation:fin .2s;}
   .main{margin-left:0;}
-  .mob-bar{display:flex;align-items:center;justify-content:space-between;
-    padding:12px 16px;background:var(--bg2);border-bottom:1.5px solid var(--card-border);
-    position:sticky;top:0;z-index:60;}
+  .mob-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg3);border-bottom:1.5px solid var(--border);position:sticky;top:0;z-index:60;box-shadow:0 2px 10px rgba(0,0,0,.06);}
   .mob-logo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;}
-  .mhd{padding:12px 16px 10px;top:49px;}
-  .mhd-logo{display:none;}
+  .hero{padding:14px 14px 0;}.hero-inner{padding:20px;}
+  .filter-bar{padding:12px 14px 0;}
   .gw{padding:12px 14px 100px;}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;}
-  .cnt-big{font-size:26px;}
-  .fab{display:flex;position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;
-    align-items:center;gap:7px;padding:12px 24px;border-radius:99px;
-    background:linear-gradient(135deg,var(--pink),var(--purple));
-    color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;
-    box-shadow:0 6px 24px rgba(123,47,190,.4);white-space:nowrap;}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;}
+  .foto-wrap{height:140px;}
+  .fab{display:flex;position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;align-items:center;gap:8px;padding:13px 26px;border-radius:99px;background:var(--grad);color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 6px 24px rgba(107,31,168,.4);white-space:nowrap;}
   .fc{background:rgba(0,0,0,.25);border-radius:99px;padding:1px 7px;font-size:10px;}
   .desktop-only{display:none !important;}
+  .load-more-wrap{padding:0 14px 100px;}
 }
 @media(min-width:768px){.mobile-only{display:none !important;}}
 
 .empty{grid-column:1/-1;text-align:center;padding:60px 20px;}
-.empty-i{font-size:44px;margin-bottom:14px;}
-.empty-t{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--muted);}
+.empty-i{font-size:48px;margin-bottom:14px;}
+.empty-t{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--muted);}
 .empty-s{font-size:13px;color:var(--muted);margin-top:6px;}
-@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.card{animation:fu .22s ease both;}
 `;
 
 export default function App() {
@@ -426,25 +405,25 @@ export default function App() {
   const [pct, setPct]               = useState(0);
   const [msg, setMsg]               = useState("Carregando dados...");
   const [showWelcome, setShowWelcome] = useState(true);
-  const [filtros, setFiltros]       = useState<Filtros>({ apenasEleitos: false });
-  const [muSearch, setMuSearch]     = useState("");
+  const [filtros, setFiltros]       = useState<Filtros>({});
   const [ocSearch, setOcSearch]     = useState("");
   const [sbOpen, setSbOpen]         = useState(false);
   const [sel, setSel]               = useState<Candidato | null>(null);
   const [pickerOc, setPickerOc]     = useState(false);
-  const [pickerMu, setPickerMu]     = useState(false);
+  const [pickerEs, setPickerEs]     = useState(false);
+  const [page, setPage]             = useState(1);
 
   useEffect(() => {
     const t1 = setTimeout(() => setPct(30), 300);
     const t2 = setTimeout(() => { setPct(65); setMsg("Processando candidatos..."); }, 800);
-    fetch("/candidatos_pa.json")
+    fetch("/candidatos_PA.json")
       .then(r => r.json())
       .then((d: Candidato[]) => {
         clearTimeout(t1); clearTimeout(t2);
         setPct(100); setMsg(`${d.length.toLocaleString()} candidatos carregados`);
         setTimeout(() => { setCandidatos(d); setLoading(false); }, 400);
       })
-      .catch(() => setMsg("Erro ao carregar. Verifique candidatos_pa.json na pasta public."));
+      .catch(() => setMsg("Erro ao carregar. Verifique candidatos_PA.json na pasta public."));
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
@@ -455,171 +434,163 @@ export default function App() {
       co: u(candidatos.map(c => c.co)).filter(c => c !== "NÃO INFORMADO"),
       oc: u(candidatos.map(c => c.oc)),
       ca: u(candidatos.map(c => c.ca)),
-      mu: u(candidatos.map(c => c.mu)),
+      es: u(candidatos.map(c => c.es)),
     };
   }, [candidatos]);
 
-  const muFilt = useMemo(() => opts.mu.filter(m => m.toLowerCase().includes(muSearch.toLowerCase())), [opts.mu, muSearch]);
   const ocFilt = useMemo(() => opts.oc.filter(o => o.toLowerCase().includes(ocSearch.toLowerCase())), [opts.oc, ocSearch]);
 
   const tog = useCallback((cat: keyof Filtros, val: string) => {
     setFiltros(f => ({ ...f, [cat]: f[cat] === val ? undefined : val }));
-    setShowWelcome(false);
+    setShowWelcome(false); setPage(1);
+  }, []);
+  const togBool = useCallback((cat: keyof Filtros) => {
+    setFiltros(f => ({ ...f, [cat]: f[cat] ? undefined : true }));
+    setShowWelcome(false); setPage(1);
   }, []);
 
-  const { resultado, total } = useMemo(() => {
-    const temFiltro = !!(filtros.ge || filtros.co || filtros.oc || filtros.fx || filtros.ca || filtros.mu);
-    const filtrados = candidatos.filter(c => {
-      if (filtros.apenasEleitos && !c.el) return false;
-      if (!temFiltro) return true;
-      return passaFiltros(c, filtros);
-    });
-    return { resultado: filtrados.slice(0, 300), total: filtrados.length };
+  const filtrados = useMemo(() => {
+    const keys = Object.keys(filtros) as (keyof Filtros)[];
+    const temFiltro = keys.some(k => filtros[k]);
+    return candidatos.filter(c => temFiltro ? passaFiltros(c, filtros) : true);
   }, [candidatos, filtros]);
 
-  const nAtivos = [filtros.ge, filtros.co, filtros.oc, filtros.fx, filtros.ca, filtros.mu].filter(Boolean).length;
+  const resultado = useMemo(() => filtrados.slice(0, page * PAGE_SIZE), [filtrados, page]);
+  const hasMore = resultado.length < filtrados.length;
+
+  const comRedes = useMemo(() => candidatos.filter(c => c.rs.length > 0).length, [candidatos]);
+  const nAtivos = (Object.keys(filtros) as (keyof Filtros)[]).filter(k => filtros[k]).length;
   const temFiltro = nAtivos > 0;
   const closeSb = useCallback(() => setSbOpen(false), []);
 
   if (loading) return (
     <><style>{CSS}</style>
     <div className="loading">
-      <div className="logo-load">
-        <span style={{background:"linear-gradient(135deg,#E8006A,#7B2FBE)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
-        <span style={{color:"#1C1C2E"}}>REPRESENTA</span>
-        <span style={{color:"#D4900A"}}>?</span>
+      <div className="load-logo">
+        <span style={{background:"linear-gradient(135deg,#D4005A,#6B1FA8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
+        <span style={{color:"#1A1A2E"}}>REPRESENTA</span>
+        <span style={{color:"#B8780A"}}>?</span>
       </div>
-      <div className="pbar"><div className="pfill" style={{ width:`${pct}%` }}/></div>
+      <div className="pbar"><div className="pfill" style={{width:`${pct}%`}}/></div>
       <div className="ptxt">{msg}</div>
     </div></>
   );
 
   if (showWelcome && !temFiltro) return (
-    <><style>{CSS}</style>
-    <WelcomeScreen onStart={() => setShowWelcome(false)} />
-    </>
+    <><style>{CSS}</style><WelcomeScreen onStart={() => setShowWelcome(false)} total={candidatos.length}/></>
   );
+
+  const nomeFiltro: Record<string,string> = { ql:"Quilombola", ind:"Indígena", bn:"Declarou bens" };
+  const ativosList: {k:string;v:string}[] = [];
+  (["ge","co","oc","fx","ca","es"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:String(filtros[k])}); });
+  (["ql","ind","bn"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:nomeFiltro[k]}); });
 
   const SidebarContent = () => (
     <>
       <div className="sb-pull"/>
       <div className="sb-hd">
         <div className="sb-logo"><span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span></div>
-        <div className="logo-sub">Eleições Municipais · Pará · 2024</div>
+        <div className="logo-sub">Eleições Gerais · Pará · 2026</div>
         <button className="sb-close-btn" onClick={closeSb}>✕</button>
       </div>
       <div className="sb-body">
         <div className="aviso">
-          <strong>⚠️ Dados TSE:</strong> Sexo, etnia, profissão e faixa etária vêm do arquivo oficial de candidatos. <strong>Orientação sexual e identidade de gênero não são coletados pelo TSE.</strong>
+          <strong>⚠️ Dados TSE:</strong> As informações vêm do arquivo oficial de candidatos. Clique no ⓘ de cada filtro para ver a definição e quem preencheu o dado.
         </div>
 
+        {/* Representatividade (booleanos) */}
         <div className="fsec">
-          <div className="tog-row">
-            <span className="tog-lbl">🏆 Apenas eleitos</span>
-            <label className="tog">
-              <input type="checkbox" checked={filtros.apenasEleitos}
-                onChange={e => setFiltros(f => ({...f, apenasEleitos: e.target.checked}))}/>
-              <div className="tog-tr"/><div className="tog-th"/>
-            </label>
+          <div className="ftit">✊ Representatividade</div>
+          <div className={`toggle-filter ${filtros.ql?"on":""}`} onClick={()=>togBool("ql")}>
+            <span className="tf-label">🏴 Quilombola <InfoIcon k="ql"/></span>
+            <span className="tf-check">{filtros.ql?"✓":""}</span>
+          </div>
+          <div className={`toggle-filter ${filtros.ind?"on":""}`} onClick={()=>togBool("ind")}>
+            <span className="tf-label">🪶 Indígena <InfoIcon k="ind"/></span>
+            <span className="tf-check">{filtros.ind?"✓":""}</span>
           </div>
         </div>
 
         <div className="fsec">
-          <div className="ftit">⚥ Sexo</div>
+          <div className="ftit">⚥ Sexo <InfoIcon k="ge"/></div>
           <div className="chips">
             {opts.ge.map(v => (
               <div key={v} className={`chip ${filtros.ge===v?"on":""}`}
-                style={{"--c":v==="FEMININO"?"#E8006A":"#1A5FBE"} as React.CSSProperties}
-                onClick={() => tog("ge", v)}>{v}</div>
+                style={{"--c":v==="FEMININO"?"#D4005A":"#1A5CBE"} as React.CSSProperties}
+                onClick={()=>tog("ge",v)}>{v}</div>
             ))}
           </div>
           <div style={{fontSize:10,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>Transgênero e não-binário não constam nos dados do TSE.</div>
         </div>
 
         <div className="fsec">
-          <div className="ftit">🌿 Etnia / Cor</div>
+          <div className="ftit">🌿 Etnia / Cor <InfoIcon k="co"/></div>
           <div className="chips">
             {opts.co.map(v => (
               <div key={v} className={`chip ${filtros.co===v?"on":""}`}
-                style={{"--c":COR_COR[v]??"#7B2FBE"} as React.CSSProperties}
-                onClick={() => tog("co", v)}>{v}</div>
+                style={{"--c":COR_COR[v]??"#6B1FA8"} as React.CSSProperties}
+                onClick={()=>tog("co",v)}>{v}</div>
             ))}
           </div>
         </div>
 
         <div className="fsec">
-          <div className="ftit">🎂 Faixa Etária</div>
+          <div className="ftit">🎂 Faixa Etária <InfoIcon k="fx"/></div>
           <div className="chips">
             {FAIXAS.map(f => (
               <div key={f.label} className={`chip ${filtros.fx===f.label?"on":""}`}
-                style={{"--c":"#7B2FBE"} as React.CSSProperties}
-                onClick={() => tog("fx", f.label)}>{f.label} anos</div>
+                style={{"--c":"#6B1FA8"} as React.CSSProperties}
+                onClick={()=>tog("fx",f.label)}>{f.label} anos</div>
             ))}
           </div>
         </div>
 
         <div className="fsec">
-          <div className="ftit">🏛️ Cargo</div>
+          <div className="ftit">🏛️ Cargo <InfoIcon k="ca"/></div>
           <div className="chips">
             {opts.ca.map(v => (
               <div key={v} className={`chip ${filtros.ca===v?"on":""}`}
-                style={{"--c":"#1A5FBE"} as React.CSSProperties}
-                onClick={() => tog("ca", v)}>{v}</div>
+                style={{"--c":"#1A5CBE"} as React.CSSProperties}
+                onClick={()=>tog("ca",v)}>{v}</div>
             ))}
           </div>
         </div>
 
         <div className="fsec">
-          <div className="ftit">💼 Profissão <span style={{fontSize:9,color:"var(--muted)",fontWeight:400,letterSpacing:0}}>(190 opções)</span></div>
-          <button className="sel-btn mobile-only"
-            style={filtros.oc?{borderColor:"#E8006A",color:"#E8006A"} as React.CSSProperties:{}}
-            onClick={() => setPickerOc(true)}>
-            <span>{filtros.oc ?? "Selecionar profissão..."}</span>
-            {filtros.oc
-              ? <span onClick={e=>{e.stopPropagation();tog("oc",filtros.oc!);}} style={{color:"#E8006A"}}>✕</span>
-              : <span className="sel-btn-arrow">▼</span>}
+          <div className="ftit">🎓 Escolaridade <InfoIcon k="es"/></div>
+          <button className="sel-btn" onClick={()=>setPickerEs(true)}
+            style={filtros.es?{borderColor:"#00884A",color:"#00884A"} as React.CSSProperties:{}}>
+            <span>{filtros.es??"Selecionar escolaridade..."}</span>
+            {filtros.es?<span onClick={e=>{e.stopPropagation();tog("es",filtros.es!);}} style={{color:"#D4005A"}}>✕</span>:<span className="sel-arrow">▼</span>}
+          </button>
+        </div>
+
+        <div className="fsec">
+          <div className="ftit">💼 Profissão <InfoIcon k="oc"/> <span style={{fontSize:9,color:"var(--muted)",fontWeight:400,letterSpacing:0}}>({opts.oc.length})</span></div>
+          <button className="sel-btn mobile-only" onClick={()=>setPickerOc(true)}
+            style={filtros.oc?{borderColor:"#D4005A",color:"#D4005A"} as React.CSSProperties:{}}>
+            <span>{filtros.oc??"Selecionar profissão..."}</span>
+            {filtros.oc?<span onClick={e=>{e.stopPropagation();tog("oc",filtros.oc!);}} style={{color:"#D4005A"}}>✕</span>:<span className="sel-arrow">▼</span>}
           </button>
           <div className="desktop-only">
-            {filtros.oc && (
-              <div style={{marginBottom:6}}>
-                <div className="chip on" style={{"--c":"#E8006A"} as React.CSSProperties} onClick={()=>tog("oc",filtros.oc!)}>
-                  {filtros.oc} ✕
-                </div>
-              </div>
-            )}
+            {filtros.oc&&<div style={{marginBottom:6}}><div className="chip on" style={{"--c":"#D4005A"} as React.CSSProperties} onClick={()=>tog("oc",filtros.oc!)}>{filtros.oc} ✕</div></div>}
             <input className="srch" placeholder="Buscar profissão..." value={ocSearch} onChange={e=>setOcSearch(e.target.value)}/>
             <div className="slist">
-              {ocFilt.slice(0,80).map(v=>(
-                <div key={v} className={`sit ${filtros.oc===v?"on":""}`} onClick={()=>{tog("oc",v);setOcSearch("");}}>{v}</div>
-              ))}
-              {ocFilt.length===0 && <div style={{fontSize:11,color:"var(--muted)",padding:"4px 8px"}}>Nenhuma encontrada</div>}
+              {ocFilt.slice(0,80).map(v=><div key={v} className={`sit ${filtros.oc===v?"on":""}`} onClick={()=>{tog("oc",v);setOcSearch("");}}>{v}</div>)}
+              {ocFilt.length===0&&<div style={{fontSize:11,color:"var(--muted)",padding:"4px 8px"}}>Nenhuma encontrada</div>}
             </div>
           </div>
         </div>
 
         <div className="fsec">
-          <div className="ftit">📍 Município</div>
-          <button className="sel-btn mobile-only"
-            style={filtros.mu?{borderColor:"#1A5FBE",color:"#1A5FBE"} as React.CSSProperties:{}}
-            onClick={() => setPickerMu(true)}>
-            <span>{filtros.mu ?? "Selecionar município..."}</span>
-            {filtros.mu
-              ? <span onClick={e=>{e.stopPropagation();tog("mu",filtros.mu!);}} style={{color:"#E8006A"}}>✕</span>
-              : <span className="sel-btn-arrow">▼</span>}
-          </button>
-          <div className="desktop-only">
-            <input className="srch" placeholder="Buscar cidade..." value={muSearch} onChange={e=>setMuSearch(e.target.value)}/>
-            <div className="slist">
-              {muFilt.slice(0,60).map(m=>(
-                <div key={m} className={`sit ${filtros.mu===m?"on":""}`} onClick={()=>{tog("mu",m);setMuSearch("");}}>{m}</div>
-              ))}
-            </div>
+          <div className="ftit">💰 Patrimônio</div>
+          <div className={`toggle-filter ${filtros.bn?"on":""}`} onClick={()=>togBool("bn")}>
+            <span className="tf-label">📄 Declarou bens <InfoIcon k="bn"/></span>
+            <span className="tf-check">{filtros.bn?"✓":""}</span>
           </div>
         </div>
 
-        {temFiltro && (
-          <button className="rst-btn" onClick={()=>setFiltros({apenasEleitos:false})}>✕ Limpar todos os filtros</button>
-        )}
+        {temFiltro&&<button className="rst-btn" onClick={()=>{setFiltros({});setPage(1);}}>✕ Limpar todos os filtros</button>}
       </div>
     </>
   );
@@ -629,42 +600,48 @@ export default function App() {
 
     <div className="mob-bar">
       <div className="mob-logo">
-        <span style={{background:"linear-gradient(135deg,#E8006A,#7B2FBE)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
-        <span style={{color:"#1C1C2E"}}>REPRESENTA</span>
-        <span style={{color:"#D4900A"}}>?</span>
+        <span style={{background:"linear-gradient(135deg,#D4005A,#6B1FA8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
+        <span style={{color:"#1A1A2E"}}>REPRESENTA</span>
+        <span style={{color:"#B8780A"}}>?</span>
       </div>
-      <span style={{fontSize:10,color:"var(--muted)"}}>PA · 2024</span>
+      <span style={{fontSize:10,color:"var(--muted)"}}>PA · 2026</span>
     </div>
 
     <div className="app">
-      {sbOpen && <div className="sb-ov" onClick={closeSb}/>}
+      {sbOpen&&<div className="sb-ov" onClick={closeSb}/>}
       <div className={`sb ${sbOpen?"open":""}`}><SidebarContent/></div>
 
       <div className="main">
-        <div className="mhd">
-          <div className="mhd-logo">
-            <span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span>
-          </div>
-          <div className="cnt-big"><span>{total.toLocaleString()}</span> candidatos</div>
-          <div className="cnt-sub">
-            {temFiltro?`${total.toLocaleString()} candidatos correspondem ao seu perfil`:"Selecione características no painel para filtrar"}
-          </div>
-          {temFiltro && (
-            <div className="pills">
-              {[{k:"ge",v:filtros.ge},{k:"co",v:filtros.co},{k:"oc",v:filtros.oc},
-                {k:"fx",v:filtros.fx},{k:"ca",v:filtros.ca},{k:"mu",v:filtros.mu}]
-                .filter(x=>x.v).map(({k,v})=>(
-                  <div key={k} className="pill" onClick={()=>setFiltros(f=>({...f,[k]:undefined}))}>
-                    <span style={{overflow:"hidden",textOverflow:"ellipsis"}}>{v}</span> ✕
-                  </div>
-              ))}
+        <div className="hero">
+          <div className="hero-inner">
+            <div className="hero-left">
+              <div className="hero-num">{filtrados.length.toLocaleString()}</div>
+              <div className="hero-label">{temFiltro?"candidatos correspondem ao seu perfil":"candidatos para você explorar"}</div>
+              <div className="hero-sub">{temFiltro?"Ajuste os filtros para refinar":"Eleições Gerais · Pará · 2026"}</div>
             </div>
-          )}
+            <div className="hero-right">
+              <div className="hero-stat"><div className="hero-stat-n">{comRedes}</div><div className="hero-stat-l">Com redes</div></div>
+              <div className="hero-stat"><div className="hero-stat-n">{opts.ca.length}</div><div className="hero-stat-l">Cargos</div></div>
+              <div className="hero-stat"><div className="hero-stat-n">{opts.oc.length}</div><div className="hero-stat-l">Profissões</div></div>
+            </div>
+          </div>
         </div>
+
+        {temFiltro && (
+          <div className="filter-bar">
+            <span className="fb-label">Filtros:</span>
+            {ativosList.map(({k,v})=>(
+              <div key={k} className="fb-chip" onClick={()=>setFiltros(f=>({...f,[k]:undefined}))}>
+                {v} <span>✕</span>
+              </div>
+            ))}
+            <button className="fb-clear" onClick={()=>{setFiltros({});setPage(1);}}>Limpar tudo</button>
+          </div>
+        )}
 
         <div className="gw">
           <div className="grid">
-            {resultado.length===0 && (
+            {resultado.length===0&&(
               <div className="empty">
                 <div className="empty-i">🔍</div>
                 <div className="empty-t">Nenhum candidato encontrado</div>
@@ -674,40 +651,49 @@ export default function App() {
             {resultado.map((c,i)=>{
               const mge=filtros.ge===c.ge, mco=filtros.co===c.co, moc=filtros.oc===c.oc;
               return (
-                <div className="card" key={c.rid}
-                  style={{animationDelay:`${Math.min(i,30)*.025}s`} as React.CSSProperties}
-                  onClick={()=>setSel(c)}>
-                  {c.el && <div className="edot" title="Eleito(a)"/>}
-                  <FotoCard c={c}/>
-                  <div className="cn">{c.n}</div>
-                  <div className="cca">{c.ca} · {c.mu}</div>
-                  <div className="cpt" style={{background:getPtc(c.pt)}}>{c.pt}</div>
-                  <div className="ctags">
-                    <span className={`ctag ${mge?"m":""}`} style={mge?{"--c":c.ge==="FEMININO"?"#E8006A":"#1A5FBE"} as React.CSSProperties:{}}>{c.ge}</span>
-                    <span className={`ctag ${mco?"m":""}`} style={mco?{"--c":COR_COR[c.co]??"#7B2FBE"} as React.CSSProperties:{}}>{c.co}</span>
-                    <span className={`ctag ${moc?"m":""}`} style={moc?{"--c":"#E8006A"} as React.CSSProperties:{}}>{c.oc.length>20?c.oc.slice(0,20)+"…":c.oc}</span>
-                    <span className="ctag">{c.idade}a</span>
+                <div className="card" key={c.rid} style={{animationDelay:`${Math.min(i%PAGE_SIZE,20)*.03}s`} as React.CSSProperties} onClick={()=>setSel(c)}>
+                  <div style={{position:"relative"}}>
+                    <FotoCard c={c}/>
+                    <div className="card-badges">
+                      {c.ql===1&&<span className="badge-q">🏴 Quilombola</span>}
+                      {c.ei&&<span className="badge-i">🪶 {c.ei}</span>}
+                    </div>
+                    {c.rs.length>0&&<div className="rede-count">🔗 {c.rs.length}</div>}
+                  </div>
+                  <div className="card-body">
+                    <div className="card-name">{c.n}</div>
+                    <div className="card-cargo">{c.ca}</div>
+                    <div className="card-pt" style={{background:getPtc(c.pt)}}>{c.pt}</div>
+                    <div className="card-tags">
+                      <span className={`ctag ${mge?"m":""}`} style={mge?{"--c":c.ge==="FEMININO"?"#D4005A":"#1A5CBE"} as React.CSSProperties:{}}>{c.ge}</span>
+                      <span className={`ctag ${mco?"m":""}`} style={mco?{"--c":COR_COR[c.co]??"#6B1FA8"} as React.CSSProperties:{}}>{c.co}</span>
+                      <span className="ctag">{c.idade}a</span>
+                    </div>
+                    <button className="card-btn">Ver perfil →</button>
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
+
+        {hasMore&&(
+          <div className="load-more-wrap">
+            <button className="load-more-btn" onClick={()=>setPage(p=>p+1)}>Carregar mais candidatos ↓</button>
+          </div>
+        )}
       </div>
     </div>
 
     <button className="fab" onClick={()=>setSbOpen(o=>!o)}>
-      {sbOpen?"✕ Fechar filtros":"⚙ Filtros"}
-      {nAtivos>0 && <span className="fc">{nAtivos}</span>}
+      {sbOpen?"✕ Fechar":"⚙ Filtros"}
+      {nAtivos>0&&<span className="fc">{nAtivos}</span>}
     </button>
 
-    {pickerOc && <PickerModal title="Profissão" items={opts.oc} selected={filtros.oc}
-      onSelect={v=>{tog("oc",v);setPickerOc(false);}} onClose={()=>setPickerOc(false)}/>}
+    {pickerOc&&<PickerModal title="Profissão" items={opts.oc} selected={filtros.oc} onSelect={v=>{tog("oc",v);setPickerOc(false);}} onClose={()=>setPickerOc(false)}/>}
+    {pickerEs&&<PickerModal title="Escolaridade" items={opts.es} selected={filtros.es} onSelect={v=>{tog("es",v);setPickerEs(false);}} onClose={()=>setPickerEs(false)}/>}
 
-    {pickerMu && <PickerModal title="Município" items={opts.mu} selected={filtros.mu}
-      onSelect={v=>{tog("mu",v);setPickerMu(false);}} onClose={()=>setPickerMu(false)}/>}
-
-    {sel && (
+    {sel&&(
       <div className="ov" onClick={e=>e.target===e.currentTarget&&setSel(null)}>
         <div className="modal">
           <button className="mcl" onClick={()=>setSel(null)}>×</button>
@@ -716,19 +702,41 @@ export default function App() {
             <div className="modal-info">
               <div className="mnome">{sel.n}</div>
               <div className="mcargo">{sel.nc}</div>
-              <div className="mcargo">{sel.ca} · {sel.mu} · {sel.uf}</div>
+              <div className="mcargo">{sel.ca} · {sel.uf}</div>
               <div className="mpt" style={{background:getPtc(sel.pt)}}>{sel.pt}</div>
-              {sel.el && <div className="elbadge">✓ ELEITO(A)</div>}
+              <div className="mbadges">
+                {sel.ql===1&&<span className="mbadge q">🏴 Quilombola</span>}
+                {sel.ei&&<span className="mbadge i">🪶 {sel.ei}</span>}
+              </div>
             </div>
           </div>
+
           <div className="mgrid">
-            {[{l:"Sexo",v:sel.ge},{l:"Etnia/Cor",v:sel.co},{l:"Idade",v:`${sel.idade} anos`},
-              {l:"Escolaridade",v:sel.es.replace("ENSINO ","")},{l:"Profissão",v:sel.oc}]
-              .map(({l,v})=>(
-                <div className="minfo" key={l}><div className="ml">{l}</div><div className="mv">{v}</div></div>
-              ))}
+            {[{l:"Sexo",v:sel.ge},{l:"Etnia/Cor",v:sel.co},{l:"Idade",v:`${sel.idade} anos`},{l:"Escolaridade",v:sel.es.replace("ENSINO ","")},{l:"Profissão",v:sel.oc},{l:"Declarou bens",v:sel.bn?"Sim":"Não"}]
+              .map(({l,v})=><div className="minfo" key={l}><div className="ml">{l}</div><div className="mv">{v}</div></div>)}
           </div>
-          <div className="maviso">🏛️ No perfil do TSE você encontra redes sociais, propostas, bens declarados e financiamento de campanha.</div>
+
+          {/* Redes sociais */}
+          <div className="redes-sec">
+            <div className="redes-tit">🔗 Redes sociais & contato</div>
+            {sel.rs.length>0 ? (
+              <div className="redes-grid">
+                {sel.rs.map((r,i)=>{
+                  const info = REDE_ICON[r.t] ?? REDE_ICON.site;
+                  return (
+                    <a key={i} className="rede-link" href={r.u} target="_blank" rel="noopener noreferrer"
+                      style={{"--c":info.c} as React.CSSProperties}>
+                      <span className="rede-emoji">{info.i}</span> {info.l}
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="redes-empty">Este candidato não informou redes sociais ao TSE.</div>
+            )}
+          </div>
+
+          <div className="maviso">🏛️ No perfil oficial do TSE você encontra bens declarados, propostas e prestação de contas de campanha.</div>
           <a className="tbtn" href={tseUrl(sel)} target="_blank" rel="noopener noreferrer">🗳️ Ver perfil completo no TSE</a>
         </div>
       </div>
