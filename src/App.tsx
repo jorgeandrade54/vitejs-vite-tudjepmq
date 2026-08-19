@@ -7,10 +7,12 @@ interface Candidato {
   ge: string; co: string; oc: string; es: string;
   ue: string; uf: string;
   ql: number; ei: string; bn: number; rs: Rede[];
+  ig: string; os: string;
 }
 interface Filtros {
   ge?: string; co?: string; oc?: string; fx?: string;
   ca?: string; es?: string; ql?: boolean; ind?: boolean; bn?: boolean;
+  ig?: string; os?: string; lgbt?: boolean;
 }
 
 // Código único nacional das Eleições Gerais 2026 (mesmo para todos os estados)
@@ -62,6 +64,9 @@ const INFO: Record<string,{def:string;fonte:string}> = {
   ql: { def:"Indica se a candidata ou candidato considera-se quilombola.", fonte:"Autodeclarado pela candidata ou candidato" },
   ind:{ def:"Etnia indígena autodeclarada, dentre as opções idênticas às do cadastro eleitoral.", fonte:"Autodeclarado pela candidata ou candidato" },
   bn: { def:"Indica se a candidata ou candidato possui bens a declarar à Justiça Eleitoral.", fonte:"Autodeclarado pela candidata ou candidato" },
+  ig: { def:"Identidade de gênero autodeclarada. Só aparece para quem autorizou a divulgação ao TSE.", fonte:"Autodeclarado pela candidata ou candidato" },
+  os: { def:"Orientação sexual autodeclarada. Só aparece para quem autorizou a divulgação ao TSE.", fonte:"Autodeclarado pela candidata ou candidato" },
+  lgbt:{ def:"Candidatas e candidatos que se declararam transgênero ou com orientação sexual não-heterossexual e autorizaram a divulgação.", fonte:"Autodeclarado pela candidata ou candidato" },
 };
 
 const REDE_ICON: Record<string,{i:string;c:string;l:string}> = {
@@ -81,12 +86,23 @@ const tseUrl = (c: Candidato) => {
   return `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${re}/${c.uf}/${CD_ELEICAO_2026}/${c.sq}/2026/${c.ue}`;
 };
 
+// Detecta se candidato é LGBTQIA+ (trans OU orientação não-heterossexual)
+const ORIENT_LGBT = new Set(["GAY","LÉSBICA","BISSEXUAL","PANSEXUAL","ASSEXUAL"]);
+const ehLGBT = (c: Candidato) => {
+  const t = (c.ig || "").toUpperCase() === "TRANSGÊNERO";
+  const o = ORIENT_LGBT.has((c.os || "").toUpperCase());
+  return t || o;
+};
+
 function passaFiltros(c: Candidato, f: Filtros): boolean {
   if (f.ge && c.ge !== f.ge) return false;
   if (f.co && c.co !== f.co) return false;
   if (f.oc && c.oc !== f.oc) return false;
   if (f.ca && c.ca !== f.ca) return false;
   if (f.es && c.es !== f.es) return false;
+  if (f.ig && c.ig !== f.ig) return false;
+  if (f.os && c.os !== f.os) return false;
+  if (f.lgbt && !ehLGBT(c)) return false;
   if (f.ql && !c.ql) return false;
   if (f.ind && !c.ei) return false;
   if (f.bn && !c.bn) return false;
@@ -394,6 +410,7 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .card-badges{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:4px;}
 .badge-q{background:#00884A;color:#fff;font-size:9px;font-weight:800;padding:3px 8px;border-radius:99px;letter-spacing:.3px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
 .badge-i{background:#7B4513;color:#fff;font-size:9px;font-weight:800;padding:3px 8px;border-radius:99px;letter-spacing:.3px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.badge-lgbt{background:linear-gradient(90deg,#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787);color:#fff;font-size:9px;font-weight:800;padding:3px 8px;border-radius:99px;letter-spacing:.3px;box-shadow:0 2px 8px rgba(0,0,0,.3);text-shadow:0 1px 2px rgba(0,0,0,.4);}
 .rede-count{position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.92);color:var(--purple);font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:3px;}
 .card-body{padding:14px;}
 .card-name{font-weight:700;font-size:13px;line-height:1.3;margin-bottom:2px;color:var(--text);}
@@ -429,6 +446,7 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .mbadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;}
 .mbadge.q{background:rgba(0,136,74,.1);border:1.5px solid rgba(0,136,74,.25);color:var(--green);}
 .mbadge.i{background:rgba(123,69,19,.1);border:1.5px solid rgba(123,69,19,.25);color:#7B4513;}
+.mbadge.lgbt{background:linear-gradient(90deg,rgba(228,3,3,.12),rgba(255,140,0,.12),rgba(0,128,38,.12),rgba(0,77,255,.12),rgba(117,7,135,.12));border:1.5px solid rgba(117,7,135,.3);color:#750787;}
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0;}
 .minfo{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:11px;}
 .ml{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
@@ -555,8 +573,12 @@ export default function App() {
       oc: u(candidatos.map(c => c.oc)),
       ca: u(candidatos.map(c => c.ca)),
       es: u(candidatos.map(c => c.es)),
+      ig: u(candidatos.map(c => c.ig)).filter(v => v !== "Prefere não informar"),
+      os: u(candidatos.map(c => c.os)).filter(v => v !== "Prefere não informar"),
     };
   }, [candidatos]);
+
+  const nLGBT = useMemo(() => candidatos.filter(ehLGBT).length, [candidatos]);
 
   const ocFilt = useMemo(() => opts.oc.filter(o => o.toLowerCase().includes(ocSearch.toLowerCase())), [opts.oc, ocSearch]);
 
@@ -597,10 +619,10 @@ export default function App() {
     </div></>
   );
 
-  const nomeFiltro: Record<string,string> = { ql:"Quilombola", ind:"Indígena", bn:"Declarou bens" };
+  const nomeFiltro: Record<string,string> = { ql:"Quilombola", ind:"Indígena", bn:"Declarou bens", lgbt:"LGBTQIA+" };
   const ativosList: {k:string;v:string}[] = [];
-  (["ge","co","oc","fx","ca","es"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:String(filtros[k])}); });
-  (["ql","ind","bn"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:nomeFiltro[k]}); });
+  (["ge","co","oc","fx","ca","es","ig","os"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:String(filtros[k])}); });
+  (["lgbt","ql","ind","bn"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:nomeFiltro[k]}); });
 
   const SidebarContent = () => (
     <>
@@ -619,20 +641,39 @@ export default function App() {
         </div>
         <div className="fsec">
           <div className="ftit">✊ Representatividade</div>
+          <div className={`toggle-filter ${filtros.lgbt?"on":""}`} onClick={()=>togBool("lgbt")}>
+            <span className="tf-label">🏳️‍🌈 LGBTQIA+ <InfoIcon k="lgbt"/></span><span className="tf-check">{filtros.lgbt?"✓":""}</span>
+          </div>
           <div className={`toggle-filter ${filtros.ql?"on":""}`} onClick={()=>togBool("ql")}>
             <span className="tf-label">🏴 Quilombola <InfoIcon k="ql"/></span><span className="tf-check">{filtros.ql?"✓":""}</span>
           </div>
           <div className={`toggle-filter ${filtros.ind?"on":""}`} onClick={()=>togBool("ind")}>
             <span className="tf-label">🪶 Indígena <InfoIcon k="ind"/></span><span className="tf-check">{filtros.ind?"✓":""}</span>
           </div>
+          {nLGBT>0 && <div style={{fontSize:10,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>{nLGBT} candidatos LGBTQIA+ neste estado.</div>}
         </div>
         <div className="fsec">
           <div className="ftit">⚥ Sexo <InfoIcon k="ge"/></div>
           <div className="chips">
             {opts.ge.map(v => <div key={v} className={`chip ${filtros.ge===v?"on":""}`} style={{"--c":v==="FEMININO"?"#D4005A":"#1A5CBE"} as React.CSSProperties} onClick={()=>tog("ge",v)}>{v}</div>)}
           </div>
-          <div style={{fontSize:10,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>Transgênero e não-binário não constam nos dados do TSE.</div>
         </div>
+        {opts.ig.length>0 && (
+          <div className="fsec">
+            <div className="ftit">🌈 Identidade de gênero <InfoIcon k="ig"/></div>
+            <div className="chips">
+              {opts.ig.map(v => <div key={v} className={`chip ${filtros.ig===v?"on":""}`} style={{"--c":v==="Transgênero"?"#9B5DE5":"#6B7280"} as React.CSSProperties} onClick={()=>tog("ig",v)}>{v}</div>)}
+            </div>
+          </div>
+        )}
+        {opts.os.length>0 && (
+          <div className="fsec">
+            <div className="ftit">💗 Orientação sexual <InfoIcon k="os"/></div>
+            <div className="chips">
+              {opts.os.map(v => <div key={v} className={`chip ${filtros.os===v?"on":""}`} style={{"--c":v==="Heterossexual"?"#6B7280":"#D4005A"} as React.CSSProperties} onClick={()=>tog("os",v)}>{v}</div>)}
+            </div>
+          </div>
+        )}
         <div className="fsec">
           <div className="ftit">🌿 Etnia / Cor <InfoIcon k="co"/></div>
           <div className="chips">
@@ -732,6 +773,7 @@ export default function App() {
                   <div style={{position:"relative"}}>
                     <FotoCard c={c}/>
                     <div className="card-badges">
+                      {ehLGBT(c)&&<span className="badge-lgbt">🏳️‍🌈 {c.ig==="Transgênero"?"Trans":c.os}</span>}
                       {c.ql===1&&<span className="badge-q">🏴 Quilombola</span>}
                       {c.ei&&<span className="badge-i">🪶 {c.ei}</span>}
                     </div>
@@ -782,13 +824,16 @@ export default function App() {
               <div className="mcargo">{sel.ca} · {NOME_UF[sel.uf]}</div>
               <div className="mpt" style={{background:getPtc(sel.pt)}}>{sel.pt}</div>
               <div className="mbadges">
+                {ehLGBT(sel)&&<span className="mbadge lgbt">🏳️‍🌈 LGBTQIA+</span>}
                 {sel.ql===1&&<span className="mbadge q">🏴 Quilombola</span>}
                 {sel.ei&&<span className="mbadge i">🪶 {sel.ei}</span>}
               </div>
             </div>
           </div>
           <div className="mgrid">
-            {[{l:"Sexo",v:sel.ge},{l:"Etnia/Cor",v:sel.co},{l:"Idade",v:`${sel.idade} anos`},{l:"Escolaridade",v:sel.es.replace("ENSINO ","")},{l:"Profissão",v:sel.oc},{l:"Declarou bens",v:sel.bn?"Sim":"Não"}]
+            {[{l:"Sexo",v:sel.ge},{l:"Etnia/Cor",v:sel.co},{l:"Idade",v:`${sel.idade} anos`},{l:"Escolaridade",v:sel.es.replace("ENSINO ","")},{l:"Profissão",v:sel.oc},{l:"Declarou bens",v:sel.bn?"Sim":"Não"},
+              ...(sel.ig?[{l:"Identidade de gênero",v:sel.ig}]:[]),
+              ...(sel.os?[{l:"Orientação sexual",v:sel.os}]:[])]
               .map(({l,v})=><div className="minfo" key={l}><div className="ml">{l}</div><div className="mv">{v}</div></div>)}
           </div>
           <div className="redes-sec">
