@@ -13,6 +13,28 @@ interface Filtros {
   ca?: string; es?: string; ql?: boolean; ind?: boolean; bn?: boolean;
 }
 
+// Código único nacional das Eleições Gerais 2026 (mesmo para todos os estados)
+const CD_ELEICAO_2026 = "20322002026";
+
+const ESTADOS: { uf: string; nome: string; regiao: string }[] = [
+  { uf:"AC", nome:"Acre", regiao:"NORTE" }, { uf:"AL", nome:"Alagoas", regiao:"NORDESTE" },
+  { uf:"AP", nome:"Amapá", regiao:"NORTE" }, { uf:"AM", nome:"Amazonas", regiao:"NORTE" },
+  { uf:"BA", nome:"Bahia", regiao:"NORDESTE" }, { uf:"CE", nome:"Ceará", regiao:"NORDESTE" },
+  { uf:"DF", nome:"Distrito Federal", regiao:"CENTRO" }, { uf:"ES", nome:"Espírito Santo", regiao:"SUDESTE" },
+  { uf:"GO", nome:"Goiás", regiao:"CENTRO" }, { uf:"MA", nome:"Maranhão", regiao:"NORDESTE" },
+  { uf:"MT", nome:"Mato Grosso", regiao:"CENTRO" }, { uf:"MS", nome:"Mato Grosso do Sul", regiao:"CENTRO" },
+  { uf:"MG", nome:"Minas Gerais", regiao:"SUDESTE" }, { uf:"PA", nome:"Pará", regiao:"NORTE" },
+  { uf:"PB", nome:"Paraíba", regiao:"NORDESTE" }, { uf:"PR", nome:"Paraná", regiao:"SUL" },
+  { uf:"PE", nome:"Pernambuco", regiao:"NORDESTE" }, { uf:"PI", nome:"Piauí", regiao:"NORDESTE" },
+  { uf:"RJ", nome:"Rio de Janeiro", regiao:"SUDESTE" }, { uf:"RN", nome:"Rio Grande do Norte", regiao:"NORDESTE" },
+  { uf:"RS", nome:"Rio Grande do Sul", regiao:"SUL" }, { uf:"RO", nome:"Rondônia", regiao:"NORTE" },
+  { uf:"RR", nome:"Roraima", regiao:"NORTE" }, { uf:"SC", nome:"Santa Catarina", regiao:"SUL" },
+  { uf:"SP", nome:"São Paulo", regiao:"SUDESTE" }, { uf:"SE", nome:"Sergipe", regiao:"NORDESTE" },
+  { uf:"TO", nome:"Tocantins", regiao:"NORTE" },
+];
+const REGIAO_UF: Record<string,string> = Object.fromEntries(ESTADOS.map(e => [e.uf, e.regiao]));
+const NOME_UF: Record<string,string> = Object.fromEntries(ESTADOS.map(e => [e.uf, e.nome]));
+
 const FAIXAS = [
   { label:"18–30", min:18, max:30 }, { label:"31–45", min:31, max:45 },
   { label:"46–60", min:46, max:60 }, { label:"60+", min:61, max:120 },
@@ -30,7 +52,6 @@ const PT_COR: Record<string,string> = {
   MOBILIZA:"#8B008B", "PRTB":"#003366",
 };
 
-// Textos oficiais TSE de transparência de cada filtro
 const INFO: Record<string,{def:string;fonte:string}> = {
   ge: { def:"Descrição do gênero da candidata ou candidato. Pode assumir os valores: Masculino e Feminino.", fonte:"Registrado pela Justiça Eleitoral" },
   co: { def:"Cor/raça é autodeclarada dentre as opções: Branca, Preta, Parda, Amarela, Indígena e Não Informado.", fonte:"Autodeclarado pela candidata ou candidato" },
@@ -53,29 +74,11 @@ const REDE_ICON: Record<string,{i:string;c:string;l:string}> = {
 
 const getIbg = (co: string) => COR_COR[co] ?? "#9B5DE5";
 const getPtc = (pt: string) => PT_COR[pt] ?? "#666";
-
-// Código interno do DivulgaCand por UF para as Eleições Gerais 2026.
-// (mesmo código para todos os candidatos de um estado)
-const CD_DIVULGA: Record<string,string> = {
-  PA: "20322002026",
-};
-// Região de cada UF (usado na URL do perfil)
-const REGIAO: Record<string,string> = {
-  AC:"NORTE", AP:"NORTE", AM:"NORTE", PA:"NORTE", RO:"NORTE", RR:"NORTE", TO:"NORTE",
-  AL:"NORDESTE", BA:"NORDESTE", CE:"NORDESTE", MA:"NORDESTE", PB:"NORDESTE", PE:"NORDESTE", PI:"NORDESTE", RN:"NORDESTE", SE:"NORDESTE",
-  DF:"CENTRO", GO:"CENTRO", MT:"CENTRO", MS:"CENTRO",
-  ES:"SUDESTE", MG:"SUDESTE", RJ:"SUDESTE", SP:"SUDESTE",
-  PR:"SUL", RS:"SUL", SC:"SUL",
-};
-
-const fotoUrl = (c: Candidato) => {
-  const cd = CD_DIVULGA[c.uf] ?? "20322002026";
-  return `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/${cd}/${c.sq}/${c.ue}`;
-};
+const fotoUrl = (c: Candidato) =>
+  `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/${CD_ELEICAO_2026}/${c.sq}/${c.ue}`;
 const tseUrl = (c: Candidato) => {
-  const cd = CD_DIVULGA[c.uf] ?? "20322002026";
-  const re = REGIAO[c.uf] ?? "NORTE";
-  return `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${re}/${c.uf}/${cd}/${c.sq}/2026/${c.ue}`;
+  const re = REGIAO_UF[c.uf] ?? "NORTE";
+  return `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${re}/${c.uf}/${CD_ELEICAO_2026}/${c.sq}/2026/${c.ue}`;
 };
 
 function passaFiltros(c: Candidato, f: Filtros): boolean {
@@ -93,7 +96,7 @@ function passaFiltros(c: Candidato, f: Filtros): boolean {
 
 function FotoCard({ c }: { c: Candidato }) {
   const [err, setErr] = useState(false);
-  if (!err) return <div className="foto-wrap"><img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} /></div>;
+  if (!err) return <div className="foto-wrap"><img src={fotoUrl(c)} alt={c.n} onError={() => setErr(true)} loading="lazy" /></div>;
   return <div className="foto-wrap foto-fb" style={{ background: `linear-gradient(135deg, ${getIbg(c.co)}, ${getIbg(c.co)}99)` }}>{c.n.charAt(0)}</div>;
 }
 function FotoModal({ c }: { c: Candidato }) {
@@ -102,7 +105,6 @@ function FotoModal({ c }: { c: Candidato }) {
   return <div className="mfoto-wrap mfoto-fb" style={{ background: `linear-gradient(135deg, ${getIbg(c.co)}, ${getIbg(c.co)}99)` }}>{c.n.charAt(0)}</div>;
 }
 
-// Tooltip de transparência
 function InfoIcon({ k }: { k: string }) {
   const [open, setOpen] = useState(false);
   const info = INFO[k];
@@ -110,15 +112,13 @@ function InfoIcon({ k }: { k: string }) {
   return (
     <span className="info-wrap">
       <button className="info-btn" onClick={e => { e.stopPropagation(); setOpen(o => !o); }}>ⓘ</button>
-      {open && (
-        <>
-          <div className="info-backdrop" onClick={e => { e.stopPropagation(); setOpen(false); }} />
-          <div className="info-pop" onClick={e => e.stopPropagation()}>
-            <div className="info-def">{info.def}</div>
-            <div className="info-fonte">📋 {info.fonte}</div>
-          </div>
-        </>
-      )}
+      {open && (<>
+        <div className="info-backdrop" onClick={e => { e.stopPropagation(); setOpen(false); }} />
+        <div className="info-pop" onClick={e => e.stopPropagation()}>
+          <div className="info-def">{info.def}</div>
+          <div className="info-fonte">📋 {info.fonte}</div>
+        </div>
+      </>)}
     </span>
   );
 }
@@ -134,16 +134,11 @@ function PickerModal({ title, items, selected, onSelect, onClose }: {
   return (
     <div className="picker-ov" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="picker-box">
-        <div className="picker-hd">
-          <div className="picker-title">{title}</div>
-          <button className="picker-close" onClick={onClose}>✕</button>
-        </div>
+        <div className="picker-hd"><div className="picker-title">{title}</div><button className="picker-close" onClick={onClose}>✕</button></div>
         <div className="picker-sw"><input ref={inputRef} className="picker-search" placeholder={`Buscar ${title.toLowerCase()}...`} value={q} onChange={e => setQ(e.target.value)} /></div>
         <div className="picker-list">
           {selected && <div className="picker-item sel" onClick={() => { onSelect(selected); onClose(); }}>✓ {selected}</div>}
-          {filtered.filter(i => i !== selected).map(v => (
-            <div key={v} className="picker-item" onClick={() => { onSelect(v); onClose(); }}>{v}</div>
-          ))}
+          {filtered.filter(i => i !== selected).map(v => <div key={v} className="picker-item" onClick={() => { onSelect(v); onClose(); }}>{v}</div>)}
           {filtered.length === 0 && <div className="picker-empty">Nenhum resultado</div>}
         </div>
       </div>
@@ -151,17 +146,57 @@ function PickerModal({ title, items, selected, onSelect, onClose }: {
   );
 }
 
-function WelcomeScreen({ onStart, total }: { onStart: () => void; total: number }) {
+// Modal de seleção de estado
+function EstadoPicker({ current, onSelect, onClose }: { current: string; onSelect: (uf: string) => void; onClose: () => void; }) {
+  const [q, setQ] = useState("");
+  const filtered = ESTADOS.filter(e => e.nome.toLowerCase().includes(q.toLowerCase()) || e.uf.toLowerCase().includes(q.toLowerCase()));
+  const regioes = ["NORTE","NORDESTE","CENTRO","SUDESTE","SUL"];
+  const nomeReg: Record<string,string> = { NORTE:"Norte", NORDESTE:"Nordeste", CENTRO:"Centro-Oeste", SUDESTE:"Sudeste", SUL:"Sul" };
+  return (
+    <div className="picker-ov" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="picker-box" style={{ maxHeight:"85vh" }}>
+        <div className="picker-hd"><div className="picker-title">Escolha o estado</div><button className="picker-close" onClick={onClose}>✕</button></div>
+        <div className="picker-sw"><input className="picker-search" placeholder="Buscar estado..." value={q} onChange={e => setQ(e.target.value)} autoFocus /></div>
+        <div className="picker-list">
+          {regioes.map(reg => {
+            const estados = filtered.filter(e => e.regiao === reg);
+            if (estados.length === 0) return null;
+            return (
+              <div key={reg}>
+                <div className="estado-reg-label">{nomeReg[reg]}</div>
+                <div className="estado-grid">
+                  {estados.map(e => (
+                    <div key={e.uf} className={`estado-item ${current === e.uf ? "on" : ""}`} onClick={() => { onSelect(e.uf); onClose(); }}>
+                      <span className="estado-uf">{e.uf}</span>
+                      <span className="estado-nome">{e.nome}</span>
+                      {current === e.uf && <span className="estado-check">✓</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div className="picker-empty">Nenhum estado encontrado</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WelcomeScreen({ onStart, onPickEstado, estado }: { onStart: () => void; onPickEstado: () => void; estado: string; }) {
   return (
     <div className="welcome">
       <div className="welcome-inner">
-        <div className="welcome-badge">🗳️ Eleições Gerais · Pará · 2026</div>
+        <div className="welcome-badge">🗳️ Eleições Gerais · Brasil · 2026</div>
         <h1 className="welcome-logo"><span className="wme">ME</span><span className="wrep">REPRESENTA</span><span className="wq">?</span></h1>
-        <p className="welcome-tag">Encontre candidatos que têm o mesmo perfil que você</p>
+        <p className="welcome-tag">Encontre candidatos ao legislativo que têm o mesmo perfil que você</p>
 
-        <div className="welcome-hero-number">
-          <span className="whn-num">{total.toLocaleString()}</span>
-          <span className="whn-label">candidatos para você explorar</span>
+        <div className="welcome-estado-box">
+          <div className="web-label">📍 Seu estado</div>
+          <button className="web-btn" onClick={onPickEstado}>
+            <span>{estado ? NOME_UF[estado] : "Escolha seu estado"}</span>
+            <span className="web-arrow">▾</span>
+          </button>
         </div>
 
         <div className="welcome-cards">
@@ -170,22 +205,20 @@ function WelcomeScreen({ onStart, total }: { onStart: () => void; total: number 
             { icon:"👥", title:"Sua identidade importa", text:"Uma professora negra conhece os problemas reais e pode propor políticas públicas que um político rico jamais pensaria." },
             { icon:"🗳️", title:"Esse espaço é nosso", text:"Filtre por perfil, descubra quem pensa como você e entre em contato direto pelas redes sociais. O poder pertence a todos." },
           ].map(({ icon, title, text }) => (
-            <div key={title} className="wcard">
-              <div className="wcard-icon">{icon}</div>
-              <div className="wcard-title">{title}</div>
-              <div className="wcard-text">{text}</div>
-            </div>
+            <div key={title} className="wcard"><div className="wcard-icon">{icon}</div><div className="wcard-title">{title}</div><div className="wcard-text">{text}</div></div>
           ))}
         </div>
 
         <div className="welcome-mission">
           <p>O <strong>MeRepresenta</strong> nasceu de uma pergunta simples: <em>por que quem decide sobre a nossa vida não se parece com a gente?</em></p>
           <p>Comparando o Censo do IBGE com a composição do legislativo, os números são gritantes. Pretos, pardos, indígenas, mulheres e jovens são maioria na população — mas minoria no poder.</p>
-          <p>Aqui você filtra candidatos por características, encontra quem te representa e pode segui-los nas redes — dando visibilidade a quem tem boas ideias mas não tem dinheiro de campanha.</p>
-          <div className="welcome-source">🔍 Dados oficiais das Eleições Gerais 2026 · Estado do Pará · Fonte: TSE</div>
+          <p>Aqui você filtra candidatos ao legislativo por características, encontra quem te representa e pode segui-los nas redes — dando visibilidade a quem tem boas ideias mas não tem dinheiro de campanha.</p>
+          <div className="welcome-source">🔍 Dados oficiais das Eleições Gerais 2026 · Todos os estados · Fonte: TSE</div>
         </div>
 
-        <button className="welcome-btn" onClick={onStart}>Explorar candidatos →</button>
+        <button className="welcome-btn" onClick={onStart} disabled={!estado}>
+          {estado ? `Explorar candidatos de ${NOME_UF[estado]} →` : "Escolha um estado para começar"}
+        </button>
 
         <div className="welcome-sig">
           <div className="sig-line" />
@@ -195,12 +228,8 @@ function WelcomeScreen({ onStart, total }: { onStart: () => void; total: number 
               <div className="sig-name">Jorge Andrade</div>
             </div>
             <div className="sig-links">
-              <a className="sig-link" href="https://instagram.com/jhor54" target="_blank" rel="noopener noreferrer">
-                <span className="sig-emoji">📷</span> @jhor54
-              </a>
-              <a className="sig-link" href="mailto:jorgeandrade54@gmail.com">
-                <span className="sig-emoji">✉️</span> Email
-              </a>
+              <a className="sig-link" href="https://instagram.com/jhor54" target="_blank" rel="noopener noreferrer"><span className="sig-emoji">📷</span> @jhor54</a>
+              <a className="sig-link" href="mailto:jorgeandrade54@gmail.com"><span className="sig-emoji">✉️</span> Email</a>
             </div>
           </div>
         </div>
@@ -235,10 +264,14 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .welcome-logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(60px,15vw,130px);line-height:.9;letter-spacing:2px;margin-bottom:12px;}
 .wme{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .wrep{color:var(--text);}.wq{color:var(--gold);}
-.welcome-tag{font-size:clamp(15px,3vw,20px);color:var(--text2);font-weight:600;margin-bottom:32px;}
-.welcome-hero-number{background:var(--grad);border-radius:20px;padding:28px 32px;margin-bottom:28px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
-.whn-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,10vw,80px);letter-spacing:2px;line-height:1;}
-.whn-label{font-size:16px;font-weight:600;opacity:.92;max-width:200px;line-height:1.4;}
+.welcome-tag{font-size:clamp(15px,3vw,20px);color:var(--text2);font-weight:600;margin-bottom:24px;}
+
+.welcome-estado-box{background:#fff;border:2px solid var(--purple);border-radius:16px;padding:16px 18px;margin-bottom:28px;box-shadow:0 4px 20px rgba(107,31,168,.12);}
+.web-label{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-bottom:8px;}
+.web-btn{width:100%;padding:12px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);font-family:inherit;font-size:16px;font-weight:700;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .15s;}
+.web-btn:hover{border-color:var(--purple);background:#fff;}
+.web-arrow{color:var(--purple);font-size:14px;}
+
 .welcome-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
 @media(max-width:540px){.welcome-cards{grid-template-columns:1fr;}}
 .wcard{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 16px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
@@ -252,7 +285,8 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .welcome-mission em{color:var(--pink);font-style:normal;font-weight:700;}
 .welcome-source{margin-top:16px;font-size:11px;color:var(--muted);padding-top:12px;border-top:1px solid var(--border);}
 .welcome-btn{width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;background:var(--grad);color:#fff;letter-spacing:.3px;transition:all .2s;box-shadow:0 6px 24px rgba(107,31,168,.3);}
-.welcome-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(107,31,168,.45);}
+.welcome-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 32px rgba(107,31,168,.45);}
+.welcome-btn:disabled{opacity:.5;cursor:not-allowed;}
 
 .welcome-sig{margin-top:32px;}
 .sig-line{height:1px;background:var(--border);margin-bottom:20px;}
@@ -268,10 +302,12 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .app{display:flex;min-height:100vh;}
 .sb{width:var(--sw);flex-shrink:0;background:var(--bg3);border-right:1.5px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:2px 0 16px rgba(0,0,0,.06);}
 .sb-hd{padding:20px 18px 14px;border-bottom:1.5px solid var(--border);flex-shrink:0;}
-.sb-logo{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;}
+.sb-logo{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;cursor:pointer;}
 .sb-logo .lme{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .sb-logo .lrep{color:var(--text);}.sb-logo .lq{color:var(--gold);}
 .logo-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.sb-estado-btn{margin-top:10px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--purple);background:rgba(107,31,168,.05);color:var(--purple);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .15s;}
+.sb-estado-btn:hover{background:rgba(107,31,168,.1);}
 .sb-body{flex:1;overflow-y:auto;padding:14px 16px 80px;}
 .sb-body::-webkit-scrollbar{width:3px;}
 .sb-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
@@ -321,6 +357,8 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .hero-inner::after{content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07);}
 .hero-inner::before{content:'';position:absolute;right:60px;bottom:-60px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.05);}
 .hero-left{position:relative;z-index:1;}
+.hero-estado{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;margin-bottom:10px;cursor:pointer;transition:all .15s;backdrop-filter:blur(10px);}
+.hero-estado:hover{background:rgba(255,255,255,.3);}
 .hero-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,7vw,80px);color:#fff;letter-spacing:2px;line-height:1;}
 .hero-label{font-size:15px;font-weight:600;color:rgba(255,255,255,.85);margin-top:4px;}
 .hero-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:4px;}
@@ -403,7 +441,9 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .tbtn:hover{opacity:.92;transform:translateY(-1px);}
 
 .picker-ov{position:fixed;inset:0;background:rgba(26,26,46,.55);z-index:300;display:flex;align-items:flex-end;justify-content:center;animation:fin .2s;backdrop-filter:blur(4px);}
+@media(min-width:600px){.picker-ov{align-items:center;}}
 .picker-box{background:var(--bg3);width:100%;max-width:480px;border-radius:24px 24px 0 0;display:flex;flex-direction:column;max-height:82vh;box-shadow:0 -8px 40px rgba(0,0,0,.12);}
+@media(min-width:600px){.picker-box{border-radius:24px;}}
 .picker-hd{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;border-bottom:1.5px solid var(--border);}
 .picker-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .picker-close{background:var(--bg2);border:1.5px solid var(--border);color:var(--text2);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
@@ -418,6 +458,16 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .picker-item.sel{color:var(--pink);font-weight:700;}
 .picker-empty{text-align:center;padding:28px;color:var(--muted);font-size:13px;}
 
+.estado-reg-label{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin:16px 0 8px;}
+.estado-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:480px){.estado-grid{grid-template-columns:1fr;}}
+.estado-item{display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;transition:all .15s;position:relative;}
+.estado-item:hover{border-color:var(--purple);background:#fff;transform:translateY(-1px);}
+.estado-item.on{border-color:var(--pink);background:rgba(212,0,90,.05);}
+.estado-uf{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--purple);letter-spacing:1px;min-width:32px;}
+.estado-nome{font-size:12px;font-weight:600;color:var(--text);}
+.estado-check{position:absolute;right:12px;color:var(--pink);font-weight:800;}
+
 .mob-bar{display:none;}.fab{display:none;}.sb-pull{display:none;}.sb-ov{display:none;}.sb-close-btn{display:none;}
 @media(max-width:767px){
   :root{--sw:100%;}
@@ -430,6 +480,7 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
   .main{margin-left:0;}
   .mob-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg3);border-bottom:1.5px solid var(--border);position:sticky;top:0;z-index:60;box-shadow:0 2px 10px rgba(0,0,0,.06);}
   .mob-logo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;}
+  .mob-estado{font-size:11px;font-weight:700;color:var(--purple);background:rgba(107,31,168,.08);padding:4px 10px;border-radius:99px;cursor:pointer;border:1px solid rgba(107,31,168,.2);}
   .hero{padding:14px 14px 0;}.hero-inner{padding:20px;}
   .filter-bar{padding:12px 14px 0;}
   .gw{padding:12px 14px 100px;}
@@ -449,10 +500,13 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 `;
 
 export default function App() {
+  const [estado, setEstado] = useState<string>(() => {
+    try { return localStorage.getItem("mr_estado") || ""; } catch { return ""; }
+  });
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [loading, setLoading]       = useState(false);
   const [pct, setPct]               = useState(0);
-  const [msg, setMsg]               = useState("Carregando dados...");
+  const [msg, setMsg]               = useState("");
   const [showWelcome, setShowWelcome] = useState(true);
   const [filtros, setFiltros]       = useState<Filtros>({});
   const [ocSearch, setOcSearch]     = useState("");
@@ -460,21 +514,32 @@ export default function App() {
   const [sel, setSel]               = useState<Candidato | null>(null);
   const [pickerOc, setPickerOc]     = useState(false);
   const [pickerEs, setPickerEs]     = useState(false);
+  const [pickerEstado, setPickerEstado] = useState(false);
   const [page, setPage]             = useState(1);
 
-  useEffect(() => {
-    const t1 = setTimeout(() => setPct(30), 300);
-    const t2 = setTimeout(() => { setPct(65); setMsg("Processando candidatos..."); }, 800);
-    fetch("/candidatos_PA.json")
+  // Carregar dados do estado selecionado
+  const carregarEstado = useCallback((uf: string) => {
+    setLoading(true); setPct(20); setMsg(`Carregando candidatos de ${NOME_UF[uf]}...`);
+    setCandidatos([]); setFiltros({}); setPage(1);
+    fetch(`/candidatos_${uf}.json`)
       .then(r => r.json())
       .then((d: Candidato[]) => {
-        clearTimeout(t1); clearTimeout(t2);
-        setPct(100); setMsg(`${d.length.toLocaleString()} candidatos carregados`);
-        setTimeout(() => { setCandidatos(d); setLoading(false); }, 400);
+        setPct(100);
+        setTimeout(() => { setCandidatos(d); setLoading(false); }, 300);
       })
-      .catch(() => setMsg("Erro ao carregar. Verifique candidatos_PA.json na pasta public."));
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+      .catch(() => { setMsg(`Erro ao carregar ${uf}. Verifique candidatos_${uf}.json na pasta public.`); });
   }, []);
+
+  useEffect(() => {
+    if (estado) carregarEstado(estado);
+  }, []);
+
+  const escolherEstado = (uf: string) => {
+    setEstado(uf);
+    try { localStorage.setItem("mr_estado", uf); } catch {}
+    carregarEstado(uf);
+    setShowWelcome(false);
+  };
 
   const opts = useMemo(() => {
     const u = (a: string[]) => [...new Set(a)].filter(Boolean).sort();
@@ -490,12 +555,10 @@ export default function App() {
   const ocFilt = useMemo(() => opts.oc.filter(o => o.toLowerCase().includes(ocSearch.toLowerCase())), [opts.oc, ocSearch]);
 
   const tog = useCallback((cat: keyof Filtros, val: string) => {
-    setFiltros(f => ({ ...f, [cat]: f[cat] === val ? undefined : val }));
-    setShowWelcome(false); setPage(1);
+    setFiltros(f => ({ ...f, [cat]: f[cat] === val ? undefined : val })); setPage(1);
   }, []);
   const togBool = useCallback((cat: keyof Filtros) => {
-    setFiltros(f => ({ ...f, [cat]: f[cat] ? undefined : true }));
-    setShowWelcome(false); setPage(1);
+    setFiltros(f => ({ ...f, [cat]: f[cat] ? undefined : true })); setPage(1);
   }, []);
 
   const filtrados = useMemo(() => {
@@ -506,11 +569,18 @@ export default function App() {
 
   const resultado = useMemo(() => filtrados.slice(0, page * PAGE_SIZE), [filtrados, page]);
   const hasMore = resultado.length < filtrados.length;
-
   const comRedes = useMemo(() => candidatos.filter(c => c.rs.length > 0).length, [candidatos]);
   const nAtivos = (Object.keys(filtros) as (keyof Filtros)[]).filter(k => filtros[k]).length;
   const temFiltro = nAtivos > 0;
   const closeSb = useCallback(() => setSbOpen(false), []);
+
+  // Tela de boas-vindas
+  if (showWelcome && !temFiltro) return (
+    <><style>{CSS}</style>
+      <WelcomeScreen onStart={() => { if (estado) setShowWelcome(false); }} onPickEstado={() => setPickerEstado(true)} estado={estado} />
+      {pickerEstado && <EstadoPicker current={estado} onSelect={escolherEstado} onClose={() => setPickerEstado(false)} />}
+    </>
+  );
 
   if (loading) return (
     <><style>{CSS}</style>
@@ -525,10 +595,6 @@ export default function App() {
     </div></>
   );
 
-  if (showWelcome && !temFiltro) return (
-    <><style>{CSS}</style><WelcomeScreen onStart={() => setShowWelcome(false)} total={candidatos.length}/></>
-  );
-
   const nomeFiltro: Record<string,string> = { ql:"Quilombola", ind:"Indígena", bn:"Declarou bens" };
   const ativosList: {k:string;v:string}[] = [];
   (["ge","co","oc","fx","ca","es"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:String(filtros[k])}); });
@@ -538,86 +604,61 @@ export default function App() {
     <>
       <div className="sb-pull"/>
       <div className="sb-hd">
-        <div className="sb-logo"><span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span></div>
-        <div className="logo-sub">Eleições Gerais · Pará · 2026</div>
+        <div className="sb-logo" onClick={()=>setShowWelcome(true)}><span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span></div>
+        <div className="logo-sub">Eleições Gerais 2026 · Legislativo</div>
+        <button className="sb-estado-btn" onClick={()=>setPickerEstado(true)}>
+          <span>📍 {NOME_UF[estado]}</span><span>trocar ▾</span>
+        </button>
         <button className="sb-close-btn" onClick={closeSb}>✕</button>
       </div>
       <div className="sb-body">
         <div className="aviso">
           <strong>⚠️ Dados TSE:</strong> As informações vêm do arquivo oficial de candidatos. Clique no ⓘ de cada filtro para ver a definição e quem preencheu o dado.
         </div>
-
-        {/* Representatividade (booleanos) */}
         <div className="fsec">
           <div className="ftit">✊ Representatividade</div>
           <div className={`toggle-filter ${filtros.ql?"on":""}`} onClick={()=>togBool("ql")}>
-            <span className="tf-label">🏴 Quilombola <InfoIcon k="ql"/></span>
-            <span className="tf-check">{filtros.ql?"✓":""}</span>
+            <span className="tf-label">🏴 Quilombola <InfoIcon k="ql"/></span><span className="tf-check">{filtros.ql?"✓":""}</span>
           </div>
           <div className={`toggle-filter ${filtros.ind?"on":""}`} onClick={()=>togBool("ind")}>
-            <span className="tf-label">🪶 Indígena <InfoIcon k="ind"/></span>
-            <span className="tf-check">{filtros.ind?"✓":""}</span>
+            <span className="tf-label">🪶 Indígena <InfoIcon k="ind"/></span><span className="tf-check">{filtros.ind?"✓":""}</span>
           </div>
         </div>
-
         <div className="fsec">
           <div className="ftit">⚥ Sexo <InfoIcon k="ge"/></div>
           <div className="chips">
-            {opts.ge.map(v => (
-              <div key={v} className={`chip ${filtros.ge===v?"on":""}`}
-                style={{"--c":v==="FEMININO"?"#D4005A":"#1A5CBE"} as React.CSSProperties}
-                onClick={()=>tog("ge",v)}>{v}</div>
-            ))}
+            {opts.ge.map(v => <div key={v} className={`chip ${filtros.ge===v?"on":""}`} style={{"--c":v==="FEMININO"?"#D4005A":"#1A5CBE"} as React.CSSProperties} onClick={()=>tog("ge",v)}>{v}</div>)}
           </div>
           <div style={{fontSize:10,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>Transgênero e não-binário não constam nos dados do TSE.</div>
         </div>
-
         <div className="fsec">
           <div className="ftit">🌿 Etnia / Cor <InfoIcon k="co"/></div>
           <div className="chips">
-            {opts.co.map(v => (
-              <div key={v} className={`chip ${filtros.co===v?"on":""}`}
-                style={{"--c":COR_COR[v]??"#6B1FA8"} as React.CSSProperties}
-                onClick={()=>tog("co",v)}>{v}</div>
-            ))}
+            {opts.co.map(v => <div key={v} className={`chip ${filtros.co===v?"on":""}`} style={{"--c":COR_COR[v]??"#6B1FA8"} as React.CSSProperties} onClick={()=>tog("co",v)}>{v}</div>)}
           </div>
         </div>
-
         <div className="fsec">
           <div className="ftit">🎂 Faixa Etária <InfoIcon k="fx"/></div>
           <div className="chips">
-            {FAIXAS.map(f => (
-              <div key={f.label} className={`chip ${filtros.fx===f.label?"on":""}`}
-                style={{"--c":"#6B1FA8"} as React.CSSProperties}
-                onClick={()=>tog("fx",f.label)}>{f.label} anos</div>
-            ))}
+            {FAIXAS.map(f => <div key={f.label} className={`chip ${filtros.fx===f.label?"on":""}`} style={{"--c":"#6B1FA8"} as React.CSSProperties} onClick={()=>tog("fx",f.label)}>{f.label} anos</div>)}
           </div>
         </div>
-
         <div className="fsec">
           <div className="ftit">🏛️ Cargo <InfoIcon k="ca"/></div>
           <div className="chips">
-            {opts.ca.map(v => (
-              <div key={v} className={`chip ${filtros.ca===v?"on":""}`}
-                style={{"--c":"#1A5CBE"} as React.CSSProperties}
-                onClick={()=>tog("ca",v)}>{v}</div>
-            ))}
+            {opts.ca.map(v => <div key={v} className={`chip ${filtros.ca===v?"on":""}`} style={{"--c":"#1A5CBE"} as React.CSSProperties} onClick={()=>tog("ca",v)}>{v}</div>)}
           </div>
         </div>
-
         <div className="fsec">
           <div className="ftit">🎓 Escolaridade <InfoIcon k="es"/></div>
-          <button className="sel-btn" onClick={()=>setPickerEs(true)}
-            style={filtros.es?{borderColor:"#00884A",color:"#00884A"} as React.CSSProperties:{}}>
+          <button className="sel-btn" onClick={()=>setPickerEs(true)} style={filtros.es?{borderColor:"#00884A",color:"#00884A"} as React.CSSProperties:{}}>
             <span>{filtros.es??"Selecionar escolaridade..."}</span>
             {filtros.es?<span onClick={e=>{e.stopPropagation();tog("es",filtros.es!);}} style={{color:"#D4005A"}}>✕</span>:<span className="sel-arrow">▼</span>}
           </button>
         </div>
-
         <div className="fsec">
           <div className="ftit">💼 Profissão <InfoIcon k="oc"/> <span style={{fontSize:9,color:"var(--muted)",fontWeight:400,letterSpacing:0}}>({opts.oc.length})</span></div>
-          <button className="sel-btn mobile-only" onClick={()=>setPickerOc(true)}
-            style={filtros.oc?{borderColor:"#D4005A",color:"#D4005A"} as React.CSSProperties:{}}>
+          <button className="sel-btn mobile-only" onClick={()=>setPickerOc(true)} style={filtros.oc?{borderColor:"#D4005A",color:"#D4005A"} as React.CSSProperties:{}}>
             <span>{filtros.oc??"Selecionar profissão..."}</span>
             {filtros.oc?<span onClick={e=>{e.stopPropagation();tog("oc",filtros.oc!);}} style={{color:"#D4005A"}}>✕</span>:<span className="sel-arrow">▼</span>}
           </button>
@@ -630,15 +671,12 @@ export default function App() {
             </div>
           </div>
         </div>
-
         <div className="fsec">
           <div className="ftit">💰 Patrimônio</div>
           <div className={`toggle-filter ${filtros.bn?"on":""}`} onClick={()=>togBool("bn")}>
-            <span className="tf-label">📄 Declarou bens <InfoIcon k="bn"/></span>
-            <span className="tf-check">{filtros.bn?"✓":""}</span>
+            <span className="tf-label">📄 Declarou bens <InfoIcon k="bn"/></span><span className="tf-check">{filtros.bn?"✓":""}</span>
           </div>
         </div>
-
         {temFiltro&&<button className="rst-btn" onClick={()=>{setFiltros({});setPage(1);}}>✕ Limpar todos os filtros</button>}
       </div>
     </>
@@ -646,14 +684,13 @@ export default function App() {
 
   return (
     <><style>{CSS}</style>
-
     <div className="mob-bar">
-      <div className="mob-logo">
+      <div className="mob-logo" onClick={()=>setShowWelcome(true)}>
         <span style={{background:"linear-gradient(135deg,#D4005A,#6B1FA8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
         <span style={{color:"#1A1A2E"}}>REPRESENTA</span>
         <span style={{color:"#B8780A"}}>?</span>
       </div>
-      <span style={{fontSize:10,color:"var(--muted)"}}>PA · 2026</span>
+      <span className="mob-estado" onClick={()=>setPickerEstado(true)}>📍 {estado} ▾</span>
     </div>
 
     <div className="app">
@@ -664,9 +701,10 @@ export default function App() {
         <div className="hero">
           <div className="hero-inner">
             <div className="hero-left">
+              <div className="hero-estado" onClick={()=>setPickerEstado(true)}>📍 {NOME_UF[estado]} · trocar</div>
               <div className="hero-num">{filtrados.length.toLocaleString()}</div>
-              <div className="hero-label">{temFiltro?"candidatos correspondem ao seu perfil":"candidatos para você explorar"}</div>
-              <div className="hero-sub">{temFiltro?"Ajuste os filtros para refinar":"Eleições Gerais · Pará · 2026"}</div>
+              <div className="hero-label">{temFiltro?"candidatos correspondem ao seu perfil":"candidatos ao legislativo"}</div>
+              <div className="hero-sub">{temFiltro?"Ajuste os filtros para refinar":`Eleições Gerais 2026 · ${NOME_UF[estado]}`}</div>
             </div>
             <div className="hero-right">
               <div className="hero-stat"><div className="hero-stat-n">{comRedes}</div><div className="hero-stat-l">Com redes</div></div>
@@ -679,11 +717,7 @@ export default function App() {
         {temFiltro && (
           <div className="filter-bar">
             <span className="fb-label">Filtros:</span>
-            {ativosList.map(({k,v})=>(
-              <div key={k} className="fb-chip" onClick={()=>setFiltros(f=>({...f,[k]:undefined}))}>
-                {v} <span>✕</span>
-              </div>
-            ))}
+            {ativosList.map(({k,v})=><div key={k} className="fb-chip" onClick={()=>setFiltros(f=>({...f,[k]:undefined}))}>{v} <span>✕</span></div>)}
             <button className="fb-clear" onClick={()=>{setFiltros({});setPage(1);}}>Limpar tudo</button>
           </div>
         )}
@@ -691,14 +725,10 @@ export default function App() {
         <div className="gw">
           <div className="grid">
             {resultado.length===0&&(
-              <div className="empty">
-                <div className="empty-i">🔍</div>
-                <div className="empty-t">Nenhum candidato encontrado</div>
-                <div className="empty-s">Tente remover alguns filtros</div>
-              </div>
+              <div className="empty"><div className="empty-i">🔍</div><div className="empty-t">Nenhum candidato encontrado</div><div className="empty-s">Tente remover alguns filtros</div></div>
             )}
             {resultado.map((c,i)=>{
-              const mge=filtros.ge===c.ge, mco=filtros.co===c.co, moc=filtros.oc===c.oc;
+              const mge=filtros.ge===c.ge, mco=filtros.co===c.co;
               return (
                 <div className="card" key={c.rid} style={{animationDelay:`${Math.min(i%PAGE_SIZE,20)*.03}s`} as React.CSSProperties} onClick={()=>setSel(c)}>
                   <div style={{position:"relative"}}>
@@ -735,10 +765,10 @@ export default function App() {
     </div>
 
     <button className="fab" onClick={()=>setSbOpen(o=>!o)}>
-      {sbOpen?"✕ Fechar":"⚙ Filtros"}
-      {nAtivos>0&&<span className="fc">{nAtivos}</span>}
+      {sbOpen?"✕ Fechar":"⚙ Filtros"}{nAtivos>0&&<span className="fc">{nAtivos}</span>}
     </button>
 
+    {pickerEstado&&<EstadoPicker current={estado} onSelect={escolherEstado} onClose={()=>setPickerEstado(false)}/>}
     {pickerOc&&<PickerModal title="Profissão" items={opts.oc} selected={filtros.oc} onSelect={v=>{tog("oc",v);setPickerOc(false);}} onClose={()=>setPickerOc(false)}/>}
     {pickerEs&&<PickerModal title="Escolaridade" items={opts.es} selected={filtros.es} onSelect={v=>{tog("es",v);setPickerEs(false);}} onClose={()=>setPickerEs(false)}/>}
 
@@ -751,7 +781,7 @@ export default function App() {
             <div className="modal-info">
               <div className="mnome">{sel.n}</div>
               <div className="mcargo">{sel.nc}</div>
-              <div className="mcargo">{sel.ca} · {sel.uf}</div>
+              <div className="mcargo">{sel.ca} · {NOME_UF[sel.uf]}</div>
               <div className="mpt" style={{background:getPtc(sel.pt)}}>{sel.pt}</div>
               <div className="mbadges">
                 {sel.ql===1&&<span className="mbadge q">🏴 Quilombola</span>}
@@ -759,32 +789,21 @@ export default function App() {
               </div>
             </div>
           </div>
-
           <div className="mgrid">
             {[{l:"Sexo",v:sel.ge},{l:"Etnia/Cor",v:sel.co},{l:"Idade",v:`${sel.idade} anos`},{l:"Escolaridade",v:sel.es.replace("ENSINO ","")},{l:"Profissão",v:sel.oc},{l:"Declarou bens",v:sel.bn?"Sim":"Não"}]
               .map(({l,v})=><div className="minfo" key={l}><div className="ml">{l}</div><div className="mv">{v}</div></div>)}
           </div>
-
-          {/* Redes sociais */}
           <div className="redes-sec">
             <div className="redes-tit">🔗 Redes sociais & contato</div>
             {sel.rs.length>0 ? (
               <div className="redes-grid">
                 {sel.rs.map((r,i)=>{
                   const info = REDE_ICON[r.t] ?? REDE_ICON.site;
-                  return (
-                    <a key={i} className="rede-link" href={r.u} target="_blank" rel="noopener noreferrer"
-                      style={{"--c":info.c} as React.CSSProperties}>
-                      <span className="rede-emoji">{info.i}</span> {info.l}
-                    </a>
-                  );
+                  return <a key={i} className="rede-link" href={r.u} target="_blank" rel="noopener noreferrer" style={{"--c":info.c} as React.CSSProperties}><span className="rede-emoji">{info.i}</span> {info.l}</a>;
                 })}
               </div>
-            ) : (
-              <div className="redes-empty">Este candidato não informou redes sociais ao TSE.</div>
-            )}
+            ) : <div className="redes-empty">Este candidato não informou redes sociais ao TSE.</div>}
           </div>
-
           <div className="maviso">🏛️ No perfil oficial do TSE você encontra bens declarados, propostas e prestação de contas de campanha.</div>
           <a className="tbtn" href={tseUrl(sel)} target="_blank" rel="noopener noreferrer">🗳️ Ver perfil completo no TSE</a>
         </div>
