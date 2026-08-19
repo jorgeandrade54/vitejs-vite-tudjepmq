@@ -191,14 +191,6 @@ function WelcomeScreen({ onStart, onPickEstado, estado }: { onStart: () => void;
         <img src="/logo.svg" alt="MeRepresenta" className="welcome-logo-img" />
         <p className="welcome-tag">Encontre candidatos ao legislativo que têm o mesmo perfil que você</p>
 
-        <div className="welcome-estado-box">
-          <div className="web-label">📍 Seu estado</div>
-          <button className="web-btn" onClick={onPickEstado}>
-            <span>{estado ? NOME_UF[estado] : "Escolha seu estado"}</span>
-            <span className="web-arrow">▾</span>
-          </button>
-        </div>
-
         <div className="welcome-cards">
           {[
             { icon:"⚖️", title:"Representação real", text:"O legislativo deveria ser um espelho da sociedade — mas não é. A maioria dos parlamentares ainda são homens brancos de classe alta." },
@@ -216,10 +208,6 @@ function WelcomeScreen({ onStart, onPickEstado, estado }: { onStart: () => void;
           <div className="welcome-source">🔍 Dados oficiais das Eleições Gerais 2026 · Todos os estados · Fonte: TSE</div>
         </div>
 
-        <button className="welcome-btn" onClick={onStart} disabled={!estado}>
-          {estado ? `Explorar candidatos de ${NOME_UF[estado]} →` : "Escolha um estado para começar"}
-        </button>
-
         <div className="welcome-sig">
           <div className="sig-line" />
           <div className="sig-content">
@@ -232,6 +220,19 @@ function WelcomeScreen({ onStart, onPickEstado, estado }: { onStart: () => void;
               <a className="sig-link" href="mailto:jorgeandrade54@gmail.com"><span className="sig-emoji">✉️</span> Email</a>
             </div>
           </div>
+        </div>
+
+        <div className="welcome-cta">
+          <div className="welcome-estado-box">
+            <div className="web-label">📍 Comece escolhendo seu estado</div>
+            <button className="web-btn" onClick={onPickEstado}>
+              <span>{estado ? NOME_UF[estado] : "Escolha seu estado"}</span>
+              <span className="web-arrow">▾</span>
+            </button>
+          </div>
+          <button className="welcome-btn" onClick={onStart} disabled={!estado}>
+            {estado ? `Explorar candidatos de ${NOME_UF[estado]} →` : "Escolha um estado para começar"}
+          </button>
         </div>
       </div>
     </div>
@@ -270,7 +271,8 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .wrep{color:var(--text);}.wq{color:var(--gold);}
 .welcome-tag{font-size:clamp(15px,3vw,20px);color:var(--text2);font-weight:600;margin-bottom:24px;}
 
-.welcome-estado-box{background:#fff;border:2px solid var(--purple);border-radius:16px;padding:16px 18px;margin-bottom:28px;box-shadow:0 4px 20px rgba(107,31,168,.12);}
+.welcome-estado-box{background:#fff;border:2px solid var(--purple);border-radius:16px;padding:16px 18px;margin-bottom:16px;box-shadow:0 4px 20px rgba(107,31,168,.12);}
+.welcome-cta{margin-top:28px;padding-top:28px;border-top:2px dashed var(--border);}
 .web-label{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-bottom:8px;}
 .web-btn{width:100%;padding:12px 16px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);font-family:inherit;font-size:16px;font-weight:700;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .15s;}
 .web-btn:hover{border-color:var(--purple);background:#fff;}
