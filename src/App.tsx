@@ -188,7 +188,7 @@ function WelcomeScreen({ onStart, onPickEstado, estado }: { onStart: () => void;
     <div className="welcome">
       <div className="welcome-inner">
         <div className="welcome-badge">🗳️ Eleições Gerais · Brasil · 2026</div>
-        <h1 className="welcome-logo"><span className="wme">ME</span><span className="wrep">REPRESENTA</span><span className="wq">?</span></h1>
+        <img src="/logo.svg" alt="MeRepresenta" className="welcome-logo-img" />
         <p className="welcome-tag">Encontre candidatos ao legislativo que têm o mesmo perfil que você</p>
 
         <div className="welcome-estado-box">
@@ -254,6 +254,10 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 
 .loading{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);}
 .load-logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(56px,12vw,110px);letter-spacing:2px;line-height:1;}
+.load-logo-img{width:clamp(240px,50vw,420px);height:auto;}
+.sb-logo-img{width:170px;height:auto;cursor:pointer;display:block;}
+.mob-logo-img{height:28px;width:auto;cursor:pointer;}
+.welcome-logo-img{width:100%;max-width:560px;height:auto;margin-bottom:16px;}
 .pbar{width:200px;height:3px;border-radius:99px;background:#DDD8CF;overflow:hidden;}
 .pfill{height:100%;border-radius:99px;background:var(--grad);transition:width .4s;}
 .ptxt{font-size:11px;color:var(--muted);}
@@ -585,11 +589,7 @@ export default function App() {
   if (loading) return (
     <><style>{CSS}</style>
     <div className="loading">
-      <div className="load-logo">
-        <span style={{background:"linear-gradient(135deg,#D4005A,#6B1FA8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
-        <span style={{color:"#1A1A2E"}}>REPRESENTA</span>
-        <span style={{color:"#B8780A"}}>?</span>
-      </div>
+      <img src="/logo.svg" alt="MeRepresenta" className="load-logo-img" />
       <div className="pbar"><div className="pfill" style={{width:`${pct}%`}}/></div>
       <div className="ptxt">{msg}</div>
     </div></>
@@ -604,7 +604,7 @@ export default function App() {
     <>
       <div className="sb-pull"/>
       <div className="sb-hd">
-        <div className="sb-logo" onClick={()=>setShowWelcome(true)}><span className="lme">ME</span><span className="lrep">REPRESENTA</span><span className="lq">?</span></div>
+        <img src="/logo.svg" alt="MeRepresenta" className="sb-logo-img" onClick={()=>setShowWelcome(true)} />
         <div className="logo-sub">Eleições Gerais 2026 · Legislativo</div>
         <button className="sb-estado-btn" onClick={()=>setPickerEstado(true)}>
           <span>📍 {NOME_UF[estado]}</span><span>trocar ▾</span>
@@ -685,11 +685,7 @@ export default function App() {
   return (
     <><style>{CSS}</style>
     <div className="mob-bar">
-      <div className="mob-logo" onClick={()=>setShowWelcome(true)}>
-        <span style={{background:"linear-gradient(135deg,#D4005A,#6B1FA8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ME</span>
-        <span style={{color:"#1A1A2E"}}>REPRESENTA</span>
-        <span style={{color:"#B8780A"}}>?</span>
-      </div>
+      <img src="/logo.svg" alt="MeRepresenta" className="mob-logo-img" onClick={()=>setShowWelcome(true)} />
       <span className="mob-estado" onClick={()=>setPickerEstado(true)}>📍 {estado} ▾</span>
     </div>
 
