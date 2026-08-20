@@ -405,6 +405,14 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .hero-stat-l{font-size:10px;color:rgba(255,255,255,.75);font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
 
 .filter-bar{padding:16px 28px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.sort-bar{padding:16px 28px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.sort-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
+.sort-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.sort-btn{padding:7px 14px;border-radius:99px;font-size:12px;font-weight:700;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:all .15s;font-family:inherit;}
+.sort-btn:hover{border-color:var(--purple);color:var(--purple);}
+.sort-btn.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(107,31,168,.25);}
+.sort-note{margin:12px 28px 0;padding:10px 14px;background:#EEF4FF;border:1px solid #C5D8F0;border-radius:10px;font-size:12px;color:#2A5490;line-height:1.5;}
+@media(max-width:767px){.sort-note{margin:12px 14px 0;}}
 .fb-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
 .fb-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;background:var(--grad);color:#fff;cursor:pointer;transition:all .15s;animation:chipIn .2s ease;}
 .fb-chip:hover{opacity:.85;transform:scale(.97);}
@@ -539,6 +547,7 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
   .mob-estado{font-size:11px;font-weight:700;color:var(--purple);background:rgba(107,31,168,.08);padding:4px 10px;border-radius:99px;cursor:pointer;border:1px solid rgba(107,31,168,.2);}
   .hero{padding:14px 14px 0;}.hero-inner{padding:20px;}
   .filter-bar{padding:12px 14px 0;}
+  .sort-bar{padding:12px 14px 0;}
   .gw{padding:12px 14px 100px;}
   .grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;}
   .foto-wrap{height:140px;}
@@ -572,6 +581,7 @@ export default function App() {
   const [pickerEs, setPickerEs]     = useState(false);
   const [pickerEstado, setPickerEstado] = useState(false);
   const [page, setPage]             = useState(1);
+  const [ordem, setOrdem]           = useState<"padrao"|"freq_desc"|"freq_asc">("padrao");
 
   // Carregar dados do estado selecionado
   const carregarEstado = useCallback((uf: string) => {
@@ -625,8 +635,19 @@ export default function App() {
   const filtrados = useMemo(() => {
     const keys = Object.keys(filtros) as (keyof Filtros)[];
     const temFiltro = keys.some(k => filtros[k]);
-    return candidatos.filter(c => temFiltro ? passaFiltros(c, filtros) : true);
-  }, [candidatos, filtros]);
+    const base = candidatos.filter(c => temFiltro ? passaFiltros(c, filtros) : true);
+    if (ordem === "padrao") return base;
+    // ordenar por frequência; quem não tem fq vai para o fim
+    const arr = [...base];
+    arr.sort((a, b) => {
+      const fa = a.fq ?? -1, fb = b.fq ?? -1;
+      if (fa === -1 && fb === -1) return 0;
+      if (fa === -1) return 1;   // a sem freq → fim
+      if (fb === -1) return -1;  // b sem freq → fim
+      return ordem === "freq_desc" ? fb - fa : fa - fb;
+    });
+    return arr;
+  }, [candidatos, filtros, ordem]);
 
   const resultado = useMemo(() => filtrados.slice(0, page * PAGE_SIZE), [filtrados, page]);
   const hasMore = resultado.length < filtrados.length;
@@ -800,6 +821,20 @@ export default function App() {
             <span className="fb-label">Filtros:</span>
             {ativosList.map(({k,v})=><div key={k} className="fb-chip" onClick={()=>setFiltros(f=>({...f,[k]:undefined}))}>{v} <span>✕</span></div>)}
             <button className="fb-clear" onClick={()=>{setFiltros({});setPage(1);}}>Limpar tudo</button>
+          </div>
+        )}
+
+        <div className="sort-bar">
+          <span className="sort-label">Ordenar por:</span>
+          <div className="sort-btns">
+            <button className={`sort-btn ${ordem==="padrao"?"on":""}`} onClick={()=>{setOrdem("padrao");setPage(1);}}>Padrão</button>
+            <button className={`sort-btn ${ordem==="freq_desc"?"on":""}`} onClick={()=>{setOrdem("freq_desc");setPage(1);}}>🟢 Maior presença</button>
+            <button className={`sort-btn ${ordem==="freq_asc"?"on":""}`} onClick={()=>{setOrdem("freq_asc");setPage(1);}}>🔴 Menor presença</button>
+          </div>
+        </div>
+        {ordem!=="padrao" && (
+          <div className="sort-note">
+            💡 Ordenando pela frequência parlamentar. Os {nParl} candidatos que já exercem mandato aparecem primeiro; os demais (sem frequência registrada) vêm em seguida.
           </div>
         )}
 
