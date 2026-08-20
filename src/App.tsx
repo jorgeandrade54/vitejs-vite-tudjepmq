@@ -8,11 +8,12 @@ interface Candidato {
   ue: string; uf: string;
   ql: number; ei: string; bn: number; rs: Rede[];
   ig: string; os: string;
+  fq?: number; ca_at?: string;
 }
 interface Filtros {
   ge?: string; co?: string; oc?: string; fx?: string;
   ca?: string; es?: string; ql?: boolean; ind?: boolean; bn?: boolean;
-  ig?: string; os?: string; lgbt?: boolean;
+  ig?: string; os?: string; lgbt?: boolean; parl?: boolean;
 }
 
 // Código único nacional das Eleições Gerais 2026 (mesmo para todos os estados)
@@ -67,6 +68,7 @@ const INFO: Record<string,{def:string;fonte:string}> = {
   ig: { def:"Identidade de gênero autodeclarada. Só aparece para quem autorizou a divulgação ao TSE.", fonte:"Autodeclarado pela candidata ou candidato" },
   os: { def:"Orientação sexual autodeclarada. Só aparece para quem autorizou a divulgação ao TSE.", fonte:"Autodeclarado pela candidata ou candidato" },
   lgbt:{ def:"Candidatas e candidatos que se declararam transgênero ou com orientação sexual não-heterossexual e autorizaram a divulgação.", fonte:"Autodeclarado pela candidata ou candidato" },
+  parl:{ def:"Candidatas e candidatos que já ocupam um mandato (vereador, deputado estadual ou federal) e concorrem à reeleição ou a outro cargo. Mostra a frequência nas sessões.", fonte:"Frequência apurada nos registros oficiais das casas legislativas" },
 };
 
 const REDE_ICON: Record<string,{i:string;c:string;l:string}> = {
@@ -75,6 +77,18 @@ const REDE_ICON: Record<string,{i:string;c:string;l:string}> = {
   threads:{i:"🧵",c:"#000000",l:"Threads"}, twitter:{i:"🐦",c:"#1DA1F2",l:"X / Twitter"},
   linkedin:{i:"💼",c:"#0A66C2",l:"LinkedIn"}, kwai:{i:"📹",c:"#FF6600",l:"Kwai"},
   site:{i:"🌐",c:"#6B1FA8",l:"Site"},
+};
+
+// Cor da barra de frequência parlamentar (verde/amarelo/vermelho)
+const corFreq = (pct: number) => {
+  if (pct >= 80) return "#00884A";      // verde: bom
+  if (pct >= 60) return "#B8860B";      // amarelo/dourado: médio
+  return "#CC2936";                      // vermelho: baixo
+};
+const rotuloFreq = (pct: number) => {
+  if (pct >= 80) return "Alta presença";
+  if (pct >= 60) return "Presença média";
+  return "Baixa presença";
 };
 
 const getIbg = (co: string) => COR_COR[co] ?? "#9B5DE5";
@@ -103,6 +117,7 @@ function passaFiltros(c: Candidato, f: Filtros): boolean {
   if (f.ig && c.ig !== f.ig) return false;
   if (f.os && c.os !== f.os) return false;
   if (f.lgbt && !ehLGBT(c)) return false;
+  if (f.parl && c.fq === undefined) return false;
   if (f.ql && !c.ql) return false;
   if (f.ind && !c.ei) return false;
   if (f.bn && !c.bn) return false;
@@ -422,6 +437,14 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .card-btn{display:flex;align-items:center;justify-content:center;width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:12px;font-weight:700;color:var(--purple);cursor:pointer;transition:all .18s;gap:4px;}
 .card-btn:hover{background:var(--grad);border-color:transparent;color:#fff;}
 
+.freq-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:12px;}
+.freq-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;}
+.freq-cargo{font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;line-height:1.2;}
+.freq-pct{font-family:'Bebas Neue',sans-serif;font-size:18px;line-height:1;letter-spacing:.5px;}
+.freq-bar-bg{width:100%;height:7px;background:#E0DBD2;border-radius:99px;overflow:hidden;}
+.freq-bar-fill{height:100%;border-radius:99px;transition:width .5s ease;}
+.freq-label{font-size:8px;color:var(--muted);margin-top:4px;text-align:center;letter-spacing:.2px;}
+
 .load-more-wrap{text-align:center;padding:0 28px 40px;}
 .load-more-btn{padding:14px 40px;border-radius:12px;border:2px solid var(--border);background:#fff;font-family:inherit;font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.05);}
 .load-more-btn:hover{border-color:var(--purple);color:var(--purple);transform:translateY(-2px);box-shadow:0 6px 20px rgba(107,31,168,.12);}
@@ -452,8 +475,17 @@ html,body,#root{min-height:100%;background:var(--bg);color:var(--text);font-fami
 .ml{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
 .mv{font-size:12px;font-weight:600;line-height:1.3;color:var(--text);}
 
-.redes-sec{margin:16px 0;}
-.redes-tit{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.mfreq{background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin:16px 0;}
+.mfreq-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px;}
+.mfreq-title{font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px;}
+.mfreq-sub{font-size:11px;color:var(--text2);}
+.mfreq-big{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:.9;letter-spacing:1px;}
+.mfreq-bar-bg{width:100%;height:12px;background:#E0DBD2;border-radius:99px;overflow:hidden;}
+.mfreq-bar-fill{height:100%;border-radius:99px;transition:width .6s ease;}
+.mfreq-status{font-size:12px;font-weight:700;margin-top:8px;}
+.mfreq-note{font-size:10px;color:var(--muted);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+
+.redes-sec{margin:16px 0;}.redes-tit{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
 .redes-grid{display:flex;flex-wrap:wrap;gap:8px;}
 .rede-link{display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);text-decoration:none;font-size:12px;font-weight:700;color:var(--text);transition:all .18s;}
 .rede-link:hover{border-color:var(--c);background:#fff;transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.1);}
@@ -579,6 +611,7 @@ export default function App() {
   }, [candidatos]);
 
   const nLGBT = useMemo(() => candidatos.filter(ehLGBT).length, [candidatos]);
+  const nParl = useMemo(() => candidatos.filter(c => c.fq !== undefined).length, [candidatos]);
 
   const ocFilt = useMemo(() => opts.oc.filter(o => o.toLowerCase().includes(ocSearch.toLowerCase())), [opts.oc, ocSearch]);
 
@@ -619,10 +652,10 @@ export default function App() {
     </div></>
   );
 
-  const nomeFiltro: Record<string,string> = { ql:"Quilombola", ind:"Indígena", bn:"Declarou bens", lgbt:"LGBTQIA+" };
+  const nomeFiltro: Record<string,string> = { ql:"Quilombola", ind:"Indígena", bn:"Declarou bens", lgbt:"LGBTQIA+", parl:"Já é parlamentar" };
   const ativosList: {k:string;v:string}[] = [];
   (["ge","co","oc","fx","ca","es","ig","os"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:String(filtros[k])}); });
-  (["lgbt","ql","ind","bn"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:nomeFiltro[k]}); });
+  (["lgbt","parl","ql","ind","bn"] as const).forEach(k => { if (filtros[k]) ativosList.push({k, v:nomeFiltro[k]}); });
 
   const SidebarContent = () => (
     <>
@@ -652,6 +685,15 @@ export default function App() {
           </div>
           {nLGBT>0 && <div style={{fontSize:10,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>{nLGBT} candidatos LGBTQIA+ neste estado.</div>}
         </div>
+        {nParl>0 && (
+          <div className="fsec">
+            <div className="ftit">📊 Transparência</div>
+            <div className={`toggle-filter ${filtros.parl?"on":""}`} onClick={()=>togBool("parl")}>
+              <span className="tf-label">🏛️ Já é parlamentar <InfoIcon k="parl"/></span><span className="tf-check">{filtros.parl?"✓":""}</span>
+            </div>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:6,lineHeight:1.4}}>{nParl} candidatos já exercem mandato e têm frequência registrada.</div>
+          </div>
+        )}
         <div className="fsec">
           <div className="ftit">⚥ Sexo <InfoIcon k="ge"/></div>
           <div className="chips">
@@ -788,6 +830,18 @@ export default function App() {
                       <span className={`ctag ${mco?"m":""}`} style={mco?{"--c":COR_COR[c.co]??"#6B1FA8"} as React.CSSProperties:{}}>{c.co}</span>
                       <span className="ctag">{c.idade}a</span>
                     </div>
+                    {c.fq!==undefined && (
+                      <div className="freq-box">
+                        <div className="freq-top">
+                          <span className="freq-cargo">🏛️ {c.ca_at}</span>
+                          <span className="freq-pct" style={{color:corFreq(c.fq)}}>{c.fq}%</span>
+                        </div>
+                        <div className="freq-bar-bg">
+                          <div className="freq-bar-fill" style={{width:`${c.fq}%`,background:corFreq(c.fq)}}/>
+                        </div>
+                        <div className="freq-label">Presença em plenário 2026</div>
+                      </div>
+                    )}
                     <button className="card-btn">Ver perfil →</button>
                   </div>
                 </div>
@@ -836,6 +890,22 @@ export default function App() {
               ...(sel.os?[{l:"Orientação sexual",v:sel.os}]:[])]
               .map(({l,v})=><div className="minfo" key={l}><div className="ml">{l}</div><div className="mv">{v}</div></div>)}
           </div>
+          {sel.fq!==undefined && (
+            <div className="mfreq">
+              <div className="mfreq-head">
+                <div>
+                  <div className="mfreq-title">📊 Frequência parlamentar</div>
+                  <div className="mfreq-sub">Ocupa: {sel.ca_at} · sessões de 2026</div>
+                </div>
+                <div className="mfreq-big" style={{color:corFreq(sel.fq)}}>{sel.fq}%</div>
+              </div>
+              <div className="mfreq-bar-bg">
+                <div className="mfreq-bar-fill" style={{width:`${sel.fq}%`,background:corFreq(sel.fq)}}/>
+              </div>
+              <div className="mfreq-status" style={{color:corFreq(sel.fq)}}>{rotuloFreq(sel.fq)} nas sessões plenárias</div>
+              <div className="mfreq-note">Presença registrada nas sessões plenárias do mandato atual. Faltas justificadas (licença médica, missão oficial) contam como ausência no cálculo bruto.</div>
+            </div>
+          )}
           <div className="redes-sec">
             <div className="redes-tit">🔗 Redes sociais & contato</div>
             {sel.rs.length>0 ? (
